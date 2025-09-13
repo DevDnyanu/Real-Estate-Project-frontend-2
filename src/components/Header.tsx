@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Globe, Search, Building2, Menu, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ProfileMenu from '@/components/Profile.tsx'; 
-import logo from '@/assets/logo.jpg';
+import Logo from '@/assets/Logo.jpg';
 
 interface HeaderProps {
   currentLang: string;
@@ -91,7 +91,7 @@ const Header = ({
           onClick={handleHomeClick}
         >
           <img
-            src={logo}
+            src={Logo}
             alt="Logo"
             className="h-10 w-10 rounded-full object-cover shadow-md border border-border"
           />
