@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Phone, Mail, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
-import logo from '@/assets/logo.jpg'; // ✅ import your logo image
+import Logo from '@/assets/Logo.jpg'; // ✅ import your logo image
 
 interface FooterProps {
   currentLang: 'en' | 'mr';
@@ -86,7 +86,7 @@ export const Footer = ({ currentLang }: FooterProps) => {
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               {/* ✅ Logo Image instead of icon */}
-              <img src={logo} alt="PlotChamps Logo" className="h-10 w-10 rounded-full object-cover" />
+              <img src={Logo} alt="PlotChamps Logo" className="h-10 w-10 rounded-full object-cover" />
               <h3 className="text-xl font-bold">{t.brand}</h3>
             </div>
             <p className="text-background/80 text-sm">
