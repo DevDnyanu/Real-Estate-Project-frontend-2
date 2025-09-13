@@ -1,41 +1,150 @@
-// components/ListingDetailsPage.tsx
+
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Home, 
   MapPin, 
-  DollarSign, 
-  Bed, 
-  Bath,
-  Car,
-  Sofa,
-  Tag,
   Ruler,
-  Phone,
   Edit,
   ArrowLeft,
   User,
   Verified,
   ChevronLeft,
   ChevronRight,
-  ImageIcon
+  ImageIcon,
+  VideoIcon,
+  IndianRupee,
+  Play,
+  Languages
 } from "lucide-react";
 import { getListingApi } from "@/lib/api";
+
+// Define media type
+interface MediaItem {
+  type: 'image' | 'video';
+  url: string;
+  thumbnail?: string;
+}
 
 const ListingDetailsPage = () => {
   const { id } = useParams();
   const [listing, setListing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [mediaErrors, setMediaErrors] = useState<Set<number>>(new Set());
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const navigate = useNavigate();
+  const [language, setLanguage] = useState<'en' | 'mr'>('en');
+  const userRole = localStorage.getItem('userRole');
+  const isAuthenticated = !!localStorage.getItem('token');
 
-  const handleImageError = (index: number) => {
-    setImageErrors(prev => new Set(prev).add(index));
+  // Check if user is authenticated and has selected a package (if buyer)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/signup');
+      return;
+    }
+    
+    if (userRole === 'buyer' && !localStorage.getItem("selectedPackage")) {
+      navigate('/packages');
+    }
+  }, [userRole, navigate, id, isAuthenticated]);
+
+  // Translation dictionary
+  const translations = {
+    en: {
+      loading: "Loading plot details...",
+      error: "Error:",
+      noListing: "No listing found",
+      backToListings: "Back to Listings",
+      editListing: "Edit Listing",
+      verified: "Verified",
+      allMedia: "All Media",
+      plotDetails: "Plot Details",
+      plotSize: "Plot Size",
+      pricePerUnit: "Price Per Unit",
+      totalPrice: "Total Price",
+      listingType: "Listing Type",
+      plotTypeInfo: "Plot Type Information",
+      plotType: "Plot Type",
+      plotSubType: "Plot Sub-Type",
+      description: "Description",
+      noDescription: "No description provided for this plot.",
+      contactInfo: "Contact Information",
+      listedBy: "Listed By",
+      plotOwner: "Plot Owner",
+      contactOwner: "Contact Owner",
+      pricingDetails: "Pricing Details",
+      salePrice: "Sale Price",
+      pricePerAcreGunta: "Price Per Acre/Gunta",
+      perAcre: "per acre",
+      perGunta: "per gunta",
+      longTermLease: "Long-term lease options available",
+      plotSummary: "Plot Summary",
+      plotId: "Plot ID:",
+      totalMedia: "Total Media:",
+      plotStatus: "Plot Status:",
+      available: "Available",
+      listedOn: "Listed on:",
+      mediaNotAvailable: "Media not available",
+      noMediaAvailable: "No media available",
+      images: "Images",
+      videos: "Videos",
+      changeLanguage: "Change Language",
+      english: "English",
+      marathi: "Marathi"
+    },
+    mr: {
+      loading: "प्लॉट तपशील लोड होत आहे...",
+      error: "त्रुटी:",
+      noListing: "कोणतेही लिस्टिंग सापडले नाही",
+      backToListings: "लिस्टिंग्सवर परत जा",
+      editListing: "लिस्टिंग संपादित करा",
+      verified: "सत्यापित",
+      allMedia: "सर्व मीडिया",
+      plotDetails: "प्लॉट तपशील",
+      plotSize: "प्लॉट आकार",
+      pricePerUnit: "प्रति युनिट किंमत",
+      totalPrice: "एकूण किंमत",
+      listingType: "लिस्टिंग प्रकार",
+      plotTypeInfo: "प्लॉट प्रकार माहिती",
+      plotType: "प्लॉट प्रकार",
+      plotSubType: "प्लॉट उप-प्रकार",
+      description: "वर्णन",
+      noDescription: "या प्लॉटसाठी कोणतेही वर्णन प्रदान केलेले नाही.",
+      contactInfo: "संपर्क माहिती",
+      listedBy: "यादी केलेले",
+      plotOwner: "प्लॉट मालक",
+      contactOwner: "मालकाशी संपर्क साधा",
+      pricingDetails: "किंमत तपशील",
+      salePrice: "विक्री किंमत",
+      pricePerAcreGunta: "प्रति एकर/गुंटा किंमत",
+      perAcre: "प्रति एकर",
+      perGunta: "प्रति गुंटा",
+      longTermLease: "दीर्घकालीन भाडेपट्टी पर्याय उपलब्ध",
+      plotSummary: "प्लॉट सारांश",
+      plotId: "प्लॉट आयडी:",
+      totalMedia: "एकूण मीडिया:",
+      plotStatus: "प्लॉट स्थिती:",
+      available: "उपलब्ध",
+      listedOn: "यादी केलेली तारीख:",
+      mediaNotAvailable: "मीडिया उपलब्ध नाही",
+      noMediaAvailable: "मीडिया उपलब्ध नाहीत",
+      images: "चित्रे",
+      videos: "व्हिडिओ",
+      changeLanguage: "भाषा बदला",
+      english: "इंग्रजी",
+      marathi: "मराठी"
+    }
+  };
+
+  const t = translations[language];
+
+  const handleMediaError = (index: number) => {
+    setMediaErrors(prev => new Set(prev).add(index));
   };
 
   useEffect(() => {
@@ -49,6 +158,25 @@ const ListingDetailsPage = () => {
 
         const listingData = await getListingApi(id);
         setListing(listingData);
+        
+        // Process media items (images + videos)
+        const media: MediaItem[] = [];
+        
+        // Add images
+        if (listingData.images && Array.isArray(listingData.images)) {
+          listingData.images.forEach((url: string) => {
+            media.push({ type: 'image', url });
+          });
+        }
+        
+        // Add videos
+        if (listingData.videos && Array.isArray(listingData.videos)) {
+          listingData.videos.forEach((url: string) => {
+            media.push({ type: 'video', url });
+          });
+        }
+        
+        setMediaItems(media);
       } catch (err: any) {
         console.error("Error fetching listing:", err);
         setError(err.message || "Failed to fetch listing details");
@@ -60,35 +188,129 @@ const ListingDetailsPage = () => {
     fetchListing();
   }, [id]);
 
-  const nextImage = () => {
-    if (listing.images && listing.images.length > 0) {
-      setCurrentImageIndex((prevIndex) => 
-        prevIndex === listing.images.length - 1 ? 0 : prevIndex + 1
+  const nextMedia = () => {
+    if (mediaItems.length > 0) {
+      setCurrentMediaIndex((prevIndex) => 
+        prevIndex === mediaItems.length - 1 ? 0 : prevIndex + 1
       );
     }
   };
 
-  const prevImage = () => {
-    if (listing.images && listing.images.length > 0) {
-      setCurrentImageIndex((prevIndex) => 
-        prevIndex === 0 ? listing.images.length - 1 : prevIndex - 1
+  const prevMedia = () => {
+    if (mediaItems.length > 0) {
+      setCurrentMediaIndex((prevIndex) => 
+        prevIndex === 0 ? mediaItems.length - 1 : prevIndex - 1
       );
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading property details...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
-  if (!listing) return <div className="p-8 text-center">No listing found</div>;
+  // Toggle language function
+  const toggleLanguage = () => {
+    setLanguage(prevLang => prevLang === 'en' ? 'mr' : 'en');
+  };
+
+  if (loading) return <div className="p-8 text-center">{t.loading}</div>;
+  if (error) return <div className="p-8 text-center text-red-500">{t.error} {error}</div>;
+  if (!listing) return <div className="p-8 text-center">{t.noListing}</div>;
 
   // Format price with Indian numbering system
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN').format(price);
   };
 
+  // Get plot type label
+  const getPlotTypeLabel = (type: string) => {
+    const plotTypes = {
+      en: [
+        { id: 'agriculture', label: 'Agriculture Plot' },
+        { id: 'non-agriculture', label: 'Non-Agricultural Plot' },
+        { id: 'mountain', label: 'Mountain Plot' }
+      ],
+      mr: [
+        { id: 'agriculture', label: 'शेती जमीन' },
+        { id: 'non-agriculture', label: 'अशेती जमीन' },
+        { id: 'mountain', label: 'पर्वतीय जमीन' }
+      ]
+    };
+    return plotTypes[language].find(t => t.id === type)?.label || type;
+  };
+
+  // Get plot sub-type label
+  const getPlotSubTypeLabel = (type: string, subType: string) => {
+    const plotTypes = {
+      en: [
+        { 
+          id: 'agriculture', 
+          subTypes: [
+            { id: 'land', label: 'Land' },
+            { id: 'vegetable', label: 'Vegetable Plot' },
+            { id: 'fruit', label: 'Fruit Plot' },
+            { id: 'sugarcane', label: 'Sugarcane' },
+            { id: 'banana', label: 'Banana' },
+            { id: 'grapes', label: 'Grapes' }
+          ]
+        },
+        { 
+          id: 'non-agriculture', 
+          subTypes: [
+            { id: 'na', label: 'NA' },
+            { id: 'gunta', label: 'Gunta' }
+          ]
+        },
+        { 
+          id: 'mountain', 
+          subTypes: [
+            { id: 'top', label: 'Top' },
+            { id: 'bottom', label: 'Bottom' },
+            { id: 'tilt', label: 'Tilt' }
+          ]
+        }
+      ],
+      mr: [
+        { 
+          id: 'agriculture', 
+          subTypes: [
+            { id: 'land', label: 'जमीन' },
+            { id: 'vegetable', label: 'भाजीपाला जमीन' },
+            { id: 'fruit', label: 'फळबागा जमीन' },
+            { id: 'sugarcane', label: 'ऊस' },
+            { id: 'banana', label: 'केळी' },
+            { id: 'grapes', label: 'द्राक्षे' }
+          ]
+        },
+        { 
+          id: 'non-agriculture', 
+          subTypes: [
+            { id: 'na', label: 'नॉन-एग्री' },
+            { id: 'gunta', label: 'गुंटा' }
+          ]
+        },
+        { 
+          id: 'mountain', 
+          subTypes: [
+            { id: 'top', label: 'वरची' },
+            { id: 'bottom', label: 'खालची' },
+            { id: 'tilt', label: 'तिरपी' }
+          ]
+        }
+      ]
+    };
+    
+    const mainType = plotTypes[language].find(t => t.id === type);
+    if (mainType) {
+      const subTypeObj = mainType.subTypes.find(st => st.id === subType);
+      return subTypeObj?.label || subType;
+    }
+    return subType;
+  };
+
+  // Get current media item
+  const currentMedia = mediaItems[currentMediaIndex];
+
   return (
     <main className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Header with back button */}
+        {/* Header with back button and language toggle */}
         <div className="flex items-center justify-between mb-6">
           <Button 
             variant="outline" 
@@ -96,25 +318,39 @@ const ListingDetailsPage = () => {
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Listings
+            {t.backToListings}
           </Button>
           
-          <Button 
-            onClick={() => navigate(`/edit/${listing._id}`)}
-            className="flex items-center gap-2"
-          >
-            <Edit className="h-4 w-4" />
-            Edit Listing
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* Simple Language Toggle Button */}
+            <Button
+              variant="outline"
+              onClick={toggleLanguage}
+              className="flex items-center gap-2"
+            >
+              <Languages className="h-4 w-4" />
+              {language === 'en' ? 'मराठी' : 'English'}
+            </Button>
+            
+            {userRole === 'seller' && (
+              <Button 
+                onClick={() => navigate(`/edit/${listing._id}`)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                {t.editListing}
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Property Title and Verification */}
+        {/* Plot Title and Verification */}
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-bold text-gray-900">{listing.name}</h1>
           {listing.verified && (
             <Badge className="bg-green-500 text-white flex items-center gap-1">
               <Verified className="h-4 w-4" />
-              Verified
+              {t.verified}
             </Badge>
           )}
         </div>
@@ -124,36 +360,67 @@ const ListingDetailsPage = () => {
           <span>{listing.address}</span>
         </div>
 
-        {/* Main Image with Carousel */}
+        {/* Main Media with Carousel */}
         <div className="mb-8 relative">
-          {listing.images && listing.images.length > 0 ? (
+          {mediaItems.length > 0 ? (
             <div className="relative group">
-              {!imageErrors.has(currentImageIndex) ? (
-                <img
-                  src={listing.images[currentImageIndex]}
-                  alt={listing.name}
-                  className="w-full h-96 object-cover rounded-lg shadow-md"
-                  onError={() => handleImageError(currentImageIndex)}
-                />
+              {!mediaErrors.has(currentMediaIndex) && currentMedia ? (
+                currentMedia.type === 'image' ? (
+                  <img
+                    src={currentMedia.url}
+                    alt={listing.name}
+                    className="w-full h-96 object-cover rounded-lg shadow-md"
+                    onError={() => handleMediaError(currentMediaIndex)}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                    <video 
+                      src={currentMedia.url} 
+                      className="w-full h-full object-cover"
+                      controls
+                    />
+                  </div>
+                )
               ) : (
                 <div className="w-full h-96 bg-gray-200 rounded-lg flex flex-col items-center justify-center">
-                  <ImageIcon className="h-16 w-16 text-gray-400 mb-4" />
-                  <p className="text-gray-500">Image not available</p>
+                  {currentMedia?.type === 'video' ? (
+                    <VideoIcon className="h-16 w-16 text-gray-400 mb-4" />
+                  ) : (
+                    <ImageIcon className="h-16 w-16 text-gray-400 mb-4" />
+                  )}
+                  <p className="text-gray-500">{t.mediaNotAvailable}</p>
+                </div>
+              )}
+              
+              {/* Media Type Badge */}
+              {currentMedia && (
+                <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                  {currentMedia.type === 'image' ? (
+                    <>
+                      <ImageIcon className="h-4 w-4" />
+                      {t.images}
+                    </>
+                  ) : (
+                    <>
+                      <VideoIcon className="h-4 w-4" />
+                      {t.videos}
+                    </>
+                  )}
                 </div>
               )}
               
               {/* Navigation Arrows */}
-              {listing.images.length > 1 && (
+              {mediaItems.length > 1 && (
                 <>
                   <button
-                    onClick={prevImage}
+                    onClick={prevMedia}
                     className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   >
                     <ChevronLeft className="h-6 w-6" />
                   </button>
                   
                   <button
-                    onClick={nextImage}
+                    onClick={nextMedia}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   >
                     <ChevronRight className="h-6 w-6" />
@@ -161,51 +428,61 @@ const ListingDetailsPage = () => {
                 </>
               )}
               
-              {/* Image Counter */}
-              {listing.images.length > 1 && (
+              {/* Media Counter */}
+              {mediaItems.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
-                  {currentImageIndex + 1} / {listing.images.length}
+                  {currentMediaIndex + 1} / {mediaItems.length}
                 </div>
               )}
             </div>
           ) : (
             <div className="w-full h-96 bg-gray-200 rounded-lg flex flex-col items-center justify-center">
               <ImageIcon className="h-16 w-16 text-gray-400 mb-4" />
-              <p className="text-gray-500">No images available</p>
+              <p className="text-gray-500">{t.noMediaAvailable}</p>
             </div>
           )}
         </div>
 
-        {/* Image Thumbnails */}
-        {listing.images && listing.images.length > 1 && (
+        {/* Media Thumbnails */}
+        {mediaItems.length > 1 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <ImageIcon className="h-5 w-5" />
-              All Images ({listing.images.length})
+              {t.allMedia} ({mediaItems.length})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {listing.images.map((image: string, index: number) => (
+              {mediaItems.map((media, index) => (
                 <div 
                   key={index} 
                   className={`relative cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${
-                    index === currentImageIndex ? 'border-blue-500' : 'border-gray-200'
+                    index === currentMediaIndex ? 'border-blue-500' : 'border-gray-200'
                   }`}
-                  onClick={() => setCurrentImageIndex(index)}
+                  onClick={() => setCurrentMediaIndex(index)}
                 >
-                  {!imageErrors.has(index) ? (
-                    <img
-                      src={image}
-                      alt={`${listing.name} ${index + 1}`}
-                      className="w-full h-24 object-cover"
-                      onError={() => handleImageError(index)}
-                    />
+                  {media.type === 'image' ? (
+                    !mediaErrors.has(index) ? (
+                      <img
+                        src={media.url}
+                        alt={`${listing.name} ${index + 1}`}
+                        className="w-full h-24 object-cover"
+                        onError={() => handleMediaError(index)}
+                      />
+                    ) : (
+                      <div className="w-full h-24 bg-gray-200 flex items-center justify-center">
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )
                   ) : (
-                    <div className="w-full h-24 bg-gray-200 flex items-center justify-center">
-                      <ImageIcon className="h-8 w-8 text-gray-400" />
+                    <div className="w-full h-24 bg-gray-800 flex items-center justify-center relative">
+                      <VideoIcon className="h-8 w-8 text-white" />
+                      <Play className="h-6 w-6 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
                     </div>
                   )}
                   <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
                     {index + 1}
+                  </div>
+                  <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                    {media.type === 'image' ? 'IMG' : 'VID'}
                   </div>
                 </div>
               ))}
@@ -214,52 +491,77 @@ const ListingDetailsPage = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Property Details */}
+          {/* Left Column - Plot Details */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Home className="h-5 w-5 text-blue-600" />
-                Property Details
-              </h2>
+              <h2 className="text-xl font-semibold mb-4">{t.plotDetails}</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <Bed className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Bedrooms</p>
-                    <p className="font-semibold">{listing.bedrooms || 0}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <Bath className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Bathrooms</p>
-                    <p className="font-semibold">{listing.bathrooms || 0}</p>
-                  </div>
-                </div>
-                
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="p-2 bg-blue-100 rounded-full">
                     <Ruler className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Area (Sq Ft)</p>
-                    <p className="font-semibold">{listing.squareFootage || listing.area || 0}</p>
+                    <p className="text-sm text-gray-600">{t.plotSize}</p>
+                    <p className="font-semibold">{listing.plotSize || 0} acres</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="p-2 bg-blue-100 rounded-full">
-                    <Tag className="h-5 w-5 text-blue-600" />
+                    <IndianRupee className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Type</p>
+                    <p className="text-sm text-gray-600">{t.pricePerUnit}</p>
+                    <p className="font-semibold">₹{formatPrice(listing.pricePerUnit || 0)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <IndianRupee className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">{t.totalPrice}</p>
+                    <p className="font-semibold">₹{formatPrice(listing.totalPrice || 0)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <span className="text-blue-600 font-semibold">Type</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">{t.listingType}</p>
                     <p className="font-semibold capitalize">{listing.type || 'sale'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Plot Type Details */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">{t.plotTypeInfo}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="p-2 bg-green-100 rounded-full">
+                    <span className="text-green-600 font-semibold">Main</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">{t.plotType}</p>
+                    <p className="font-semibold">{getPlotTypeLabel(listing.plotType || '')}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="p-2 bg-green-100 rounded-full">
+                    <span className="text-green-600 font-semibold">Sub</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">{t.plotSubType}</p>
+                    <p className="font-semibold">
+                      {getPlotSubTypeLabel(listing.plotType || '', listing.plotSubType || '')}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -267,69 +569,33 @@ const ListingDetailsPage = () => {
 
             {/* Description */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">Description</h2>
+              <h2 className="text-xl font-semibold mb-4">{t.description}</h2>
               <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                {listing.description || "No description provided"}
+                {listing.description || t.noDescription}
               </p>
-            </div>
-
-            {/* Features */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">Features & Amenities</h2>
-              <div className="flex flex-wrap gap-4">
-                {listing.parking && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-full">
-                    <Car className="h-4 w-4" />
-                    <span>Parking Available</span>
-                  </div>
-                )}
-                
-                {listing.furnished && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-full">
-                    <Sofa className="h-4 w-4" />
-                    <span>Fully Furnished</span>
-                  </div>
-                )}
-                
-                {listing.offer && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-orange-100 text-orange-800 rounded-full">
-                    <Tag className="h-4 w-4" />
-                    <span>Special Offer</span>
-                  </div>
-                )}
-                
-                {!listing.parking && !listing.furnished && !listing.offer && (
-                  <p className="text-gray-500">No special features listed</p>
-                )}
-              </div>
             </div>
 
             {/* Contact Information */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Phone className="h-5 w-5 text-blue-600" />
-                Contact Information
+              <h2 className="text-xl font-semibold mb-4">
+                {t.contactInfo}
               </h2>
               
-              {listing.contactNumber ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                    <div className="p-2 bg-blue-100 rounded-full">
-                      <Phone className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Phone Number</p>
-                      <p className="font-semibold text-blue-800">{listing.contactNumber}</p>
-                    </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <User className="h-4 w-4 text-blue-600" />
                   </div>
-                  
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg">
-                    Call Now
-                  </Button>
+                  <div>
+                    <p className="text-sm text-gray-600">{t.listedBy}</p>
+                    <p className="font-semibold text-blue-800">{t.plotOwner}</p>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-gray-500">Contact number not provided</p>
-              )}
+                
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg">
+                  {t.contactOwner}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -337,107 +603,87 @@ const ListingDetailsPage = () => {
           <div>
             {/* Pricing Card */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6 sticky top-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-                Pricing Details
+              <h2 className="text-xl font-semibold mb-4">
+                <IndianRupee className="h-5 w-5 inline mr-2 text-blue-600" />
+                {t.pricingDetails}
               </h2>
               
               <div className="space-y-4">
-                {listing.offer && listing.discountPrice > 0 ? (
-                  <>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Regular Price:</span>
-                      <span className="text-lg line-through text-red-600">
-                        ₹{formatPrice(listing.regularPrice)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Discounted Price:</span>
-                      <span className="text-2xl font-bold text-green-600">
-                        ₹{formatPrice(listing.discountPrice)}
-                      </span>
-                    </div>
-                    
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-green-700 font-medium text-center">
-                        You save ₹{formatPrice(listing.regularPrice - listing.discountPrice)}
-                        {listing.type === 'rent' ? ' per month' : ''}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center">
-                    <span className="text-gray-600 text-sm block mb-1">
-                      {listing.type === 'rent' ? 'Monthly Rent' : 'Sale Price'}
-                    </span>
-                    <span className="text-3xl font-bold text-blue-600 block">
-                      ₹{formatPrice(listing.regularPrice)}
-                    </span>
-                    {listing.type === 'rent' && (
-                      <p className="text-sm text-gray-500 mt-1">Excluding maintenance and utilities</p>
-                    )}
+                <div className="text-center">
+                  <span className="text-gray-600 text-sm block mb-1">
+                    {listing.type === 'rent' ? t.pricePerAcreGunta : t.salePrice}
+                  </span>
+                  <span className="text-3xl font-bold text-blue-600 block">
+                    ₹{formatPrice(listing.pricePerUnit || 0)}
+                  </span>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {listing.plotType === 'non-agriculture' && listing.plotSubType === 'gunta' ? t.perGunta : t.perAcre}
+                  </p>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">{t.plotSize}:</span>
+                    <span className="font-medium">{listing.plotSize || 0} acres</span>
                   </div>
-                )}
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">{t.totalPrice}:</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      ₹{formatPrice(listing.totalPrice || 0)}
+                    </span>
+                  </div>
+                </div>
                 
                 {listing.type === 'rent' && (
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <p className="text-blue-700 text-sm text-center">
-                      Security deposit may apply
+                      {t.longTermLease}
                     </p>
                   </div>
                 )}
               </div>
             </div>
             
-            {/* Property Summary */}
+            {/* Plot Summary */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Property Summary
+              <h3 className="font-semibold mb-4">
+                {t.plotSummary}
               </h3>
               
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-gray-600">Property ID:</span>
+                  <span className="text-gray-600">{t.plotId}</span>
                   <span className="font-mono text-blue-600">{listing._id?.substring(0, 8).toUpperCase()}</span>
                 </div>
                 
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-gray-600">Listing Type:</span>
+                  <span className="text-gray-600">{t.listingType}:</span>
                   <span className="font-medium capitalize">{listing.type || 'sale'}</span>
                 </div>
                 
-                <div className="flex justify between items-center py-2 border-b">
-                  <span className="text-gray-600">Total Images:</span>
-                  <span className="font-medium">{listing.images?.length || 0}</span>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">{t.plotType}:</span>
+                  <span className="font-medium">{getPlotTypeLabel(listing.plotType || '')}</span>
                 </div>
                 
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-gray-600">Property Status:</span>
-                  <span className="font-medium text-green-600">Active</span>
+                  <span className="text-gray-600">{t.totalMedia}:</span>
+                  <span className="font-medium">{mediaItems.length}</span>
+                </div>
+                
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">{t.plotStatus}:</span>
+                  <span className="font-medium text-green-600">{t.available}</span>
                 </div>
                 
                 {listing.createdAt && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-gray-600">Listed on:</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">{t.listedOn}:</span>
                     <span className="font-medium">
-                      {new Date(listing.createdAt).toLocaleDateString('en-IN', {
+                      {new Date(listing.createdAt).toLocaleDateString(language === 'mr' ? 'mr-IN' : 'en-IN', {
                         day: 'numeric',
                         month: 'long',
-                        year: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                )}
-                
-                {listing.updatedAt && (
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-600">Last updated:</span>
-                    <span className="font-medium">
-                      {new Date(listing.updatedAt).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
                         year: 'numeric'
                       })}
                     </span>

@@ -1,49 +1,66 @@
-import { useState, useEffect } from 'react';
+// components/EditListing.tsx
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { createListingApi, uploadImagesApi, getListingApi, updateListingApi, deleteListingApi } from '@/lib/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
-  Home, 
   MapPin, 
-  FileText, 
-  DollarSign, 
-  Bed, 
-  Bath,
-  Car,
-  Sofa,
-  Tag,
-  AlertCircle,
   Upload,
-  Phone,
   Ruler,
-  Trash2,
-  Save,
-  ArrowLeft
+  X,
+  Edit3,
+  ImageIcon,
+  AlertCircle,
+  VideoIcon,
+  IndianRupee,
+  ArrowLeft,
+  Languages
 } from 'lucide-react';
+import { getListingApi, updateListingApi, uploadImagesApi, uploadVideoApi, deleteImageApi } from '@/lib/api';
 
-const EditListing = () => {
+// Define the form data interface for TypeScript
+interface FormData {
+  name: string;
+  description: string;
+  address: string;
+  type: string;
+  plotType: string;
+  plotSubType: string;
+  plotSize: number;
+  plotSizeUnit: string;
+  pricePerUnit: number;
+  priceUnit: string;
+  totalPrice: number;
+  userRef: string;
+}
+
+interface EditListingProps {
+  currentLang: 'en' | 'mr';
+  onLanguageChange: (lang: 'en' | 'mr') => void;
+}
+
+const EditListing = ({ currentLang = 'en', onLanguageChange }: EditListingProps) => {
   const { id } = useParams();
   const [files, setFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
-  const [formData, setFormData] = useState({
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [existingVideo, setExistingVideo] = useState<string | null>(null);
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
     address: '',
-    type: '',
-    bedrooms: 1,
-    bathrooms: 1,
-    squareFootage: 500,
-    contactNumber: '',
-    regularPrice: 1000000,
-    discountPrice: 0,
-    offer: false,
-    parking: false,
-    furnished: false,
+    type: 'sale',
+    plotType: '',
+    plotSubType: '',
+    plotSize: 0,
+    plotSizeUnit: 'acre',
+    pricePerUnit: 0,
+    priceUnit: 'perAcre',
+    totalPrice: 0,
     userRef: localStorage.getItem('userId') || 'public',
   });
 
@@ -52,106 +69,361 @@ const EditListing = () => {
     description: '',
     address: '',
     type: '',
-    bedrooms: '',
-    bathrooms: '',
-    squareFootage: '',
-    contactNumber: '',
-    regularPrice: '',
-    discountPrice: '',
-    images: ''
+    plotType: '',
+    plotSubType: '',
+    plotSize: '',
+    pricePerUnit: '',
+    totalPrice: '',
+    images: '',
+    video: ''
   });
 
   const [imageUploadError, setImageUploadError] = useState('');
+  const [videoUploadError, setVideoUploadError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [listingId, setListingId] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [textDataSubmitted, setTextDataSubmitted] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch listing data when component mounts
+  // Enhanced translations with all form field placeholders
+  const translations = {
+    en: {
+      header: "Edit your plot listing details",
+      plotName: "Plot Name",
+      plotDetails: "Plot Details",
+      plotType: "Plot Type",
+      plotSubType: "Plot Sub-Type",
+      plotSize: "Plot Size",
+      plotSizeUnit: "Unit",
+      pricePerUnit: "Expected Price",
+      priceUnit: "Price Unit",
+      totalPrice: "Total Price (₹)",
+      address: "Address",
+      description: "Description",
+      updatePlotListing: "Update Plot Listing",
+      updating: "Updating...",
+      uploadPlotMedia: "Upload Plot Media",
+      selectImages: "Select Images (Maximum 6)",
+      selectVideo: "Select Video (Optional)",
+      uploadUpTo: "Upload up to 6 images of your plot (each under 5MB). Click edit button to replace individual images.",
+      uploadVideoDesc: "Upload a video tour of your plot (under 50MB).",
+      selectedImages: "Selected Images Preview",
+      selectedVideo: "Selected Video Preview",
+      existingImages: "Existing Images",
+      existingVideo: "Existing Video",
+      addMore: "Add More",
+      remaining: "remaining",
+      uploadMedia: "Update Media",
+      uploadingImages: "Uploading Images...",
+      uploadingVideo: "Uploading Video...",
+      saveChanges: "Save Changes",
+      success: "Success",
+      plotUpdated: "Plot listing updated successfully!",
+      imagesUploaded: "Images uploaded successfully!",
+      videoUploaded: "Video uploaded successfully!",
+      error: "Error",
+      pleaseFixErrors: "Please fix the errors in the form",
+      somethingWentWrong: "Something went wrong. Please try again.",
+      failedUploadImages: "Failed to upload images",
+      failedUploadVideo: "Failed to upload video",
+      pleaseSelectImage: "Please select at least one image",
+      pleaseUploadMedia: "Please upload at least one image or video",
+      plotTypeOptions: {
+        agriculture: "Agriculture Plot",
+        nonAgriculture: "Non-Agricultural Plot",
+        mountain: "Mountain Plot"
+      },
+      plotSubTypes: {
+        land: "Land",
+        vegetable: "Vegetable Plot",
+        fruit: "Fruit Plot",
+        sugarcane: "Sugarcane",
+        banana: "Banana",
+        grapes: "Grapes",
+        na: "NA",
+        gunta: "Gunta",
+        top: "Top",
+        bottom: "Bottom",
+        tilt: "Tilt"
+      },
+      sizeUnits: {
+        acre: "Acre",
+        guntha: "Guntha",
+        hectare: "Hectare"
+      },
+      priceUnits: {
+        perAcre: "Per Acre",
+        perGuntha: "Per Guntha",
+        perSqft: "Per Sq. Ft.",
+        perKilo: "Per Kilo"
+      },
+      validation: {
+        plotNameRequired: "Plot name is required",
+        nameMinLength: "Name must be at least 10 characters",
+        nameMaxLength: "Name cannot exceed 62 characters",
+        nameLettersOnly: "Name can only contain letters and spaces",
+        addressRequired: "Address is required",
+        addressMinLength: "Please enter a complete address",
+        addressValid: "Please enter a valid address",
+        descriptionRequired: "Description is required",
+        descriptionMinLength: "Description must be at least 10 characters",
+        plotTypeRequired: "Please select a plot type",
+        plotSubTypeRequired: "Please select a plot sub-type",
+        plotSizeNumber: "Plot size must be a number",
+        plotSizeMin: "Plot size cannot be less than 0.01",
+        plotSizeMax: "Plot size cannot be more than 1000",
+        priceNumber: "Price per unit must be a number",
+        priceMin: "Price cannot be less than ₹1,000",
+        priceMax: "Price cannot exceed ₹10,00,000",
+        totalPriceNumber: "Total price must be a number",
+        totalPriceMin: "Price cannot be less than ₹1,00,000",
+        totalPriceMax: "Price cannot exceed ₹5,00,00,000",
+        imagesRequired: "Please upload at least one image",
+        imagesMax: "You can upload a maximum of 6 images",
+        imagesType: "Only image files are allowed",
+        imagesSize: "Each image should be less than 5MB",
+        videoType: "Only video files are allowed",
+        videoSize: "Video should be less than 50MB"
+      },
+      placeholders: {
+        plotName: "Enter plot name (letters only)",
+        address: "Enter complete address",
+        description: "Describe your plot in detail (minimum 10 characters)...",
+        selectPlotType: "Select Plot Type",
+        selectSubType: "Select Sub-Type",
+        selectSizeUnit: "Select Unit",
+        selectPriceUnit: "Select Unit"
+      }
+    },
+    mr: {
+      header: "तुमची प्लॉट लिस्टिंग संपादित करा",
+      plotName: "प्लॉटचे नाव",
+      plotDetails: "प्लॉट तपशील",
+      plotType: "प्लॉट प्रकार",
+      plotSubType: "प्लॉट उप-प्रकार",
+      plotSize: "प्लॉट आकार",
+      plotSizeUnit: "युनिट",
+      pricePerUnit: "अपेक्षित किंमत",
+      priceUnit: "किंमत युनिट",
+      totalPrice: "एकूण किंमत (₹)",
+      address: "पत्ता",
+      description: "वर्णन",
+      updatePlotListing: "प्लॉट लिस्टिंग अद्यतनित करा",
+      updating: "अद्यतनित करत आहे...",
+      uploadPlotMedia: "प्लॉट मीडिया अपलोड करा",
+      selectImages: "प्रतिमा निवडा (जास्तीत जास्त ६)",
+      selectVideo: "व्हिडिओ निवडा (पर्यायी)",
+      uploadUpTo: "तुमच्या प्लॉटच्या ६ प्रतिमा अपलोड करा (प्रत्येक 5MB पेक्षा कमी). वैयक्तिक प्रतिमा बदलण्यासाठी संपादन बटणावर क्लिक करा.",
+      uploadVideoDesc: "तुमच्या प्लॉटचा व्हिडिओ टूर अपलोड करा (50MB पेक्षा कमी).",
+      selectedImages: "निवडलेल्या प्रतिमांचे पूर्वावलोकन",
+      selectedVideo: "निवडलेल्या व्हिडिओचे पूर्वावलोकन",
+      existingImages: "विद्यमान प्रतिमा",
+      existingVideo: "विद्यमान व्हिडिओ",
+      addMore: "अजून जोडा",
+      remaining: "शिल्लक",
+      uploadMedia: "मीडिया अद्यतनित करा",
+      uploadingImages: "प्रतिमा अपलोड करत आहे...",
+      uploadingVideo: "व्हिडिओ अपलोड करत आहे...",
+      saveChanges: "बदल जतन करा",
+      success: "यश",
+      plotUpdated: "प्लॉट लिस्टिंग यशस्वीरित्या अद्यतनित झाली!",
+      imagesUploaded: "प्रतिमा यशस्वीरित्या अपलोड झाल्या!",
+      videoUploaded: "व्हिडिओ यशस्वीरित्या अपलोड झाला!",
+      error: "त्रुटी",
+      pleaseFixErrors: "कृपया फॉर्ममधील त्रुटी दुरुस्त करा",
+      somethingWentWrong: "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.",
+      failedUploadImages: "प्रतिमा अपलोड करण्यात अयशस्वी",
+      failedUploadVideo: "व्हिडिओ अपलोड करण्यात अयशस्वी",
+      pleaseSelectImage: "कृपया किमान एक प्रतिमा निवडा",
+      pleaseUploadMedia: "कृपया किमान एक प्रतिमा किंवा व्हिडिओ अपलोड करा",
+      plotTypeOptions: {
+        agriculture: "शेती जमीन",
+        nonAgriculture: "नॉन-एग्रीकल्चर जमीन",
+        mountain: "डोंगराळ जमीन"
+      },
+      plotSubTypes: {
+        land: "जमीन",
+        vegetable: "भाजीपाला जमीन",
+        fruit: "फळबागा जमीन",
+        sugarcane: "ऊस",
+        banana: "केळी",
+        grapes: "द्राक्षे",
+        na: "एनए",
+        gunta: "गुंटा",
+        top: "वरचा भाग",
+        bottom: "खालचा भाग",
+        tilt: "झुकणारा"
+      },
+      sizeUnits: {
+        acre: "एकर",
+        guntha: "गुंठा",
+        hectare: "हेक्टर"
+      },
+      priceUnits: {
+        perAcre: "प्रति एकर",
+        perGuntha: "प्रति गुंठा",
+        perSqft: "प्रति चौ. फुट",
+        perKilo: "प्रति किलो"
+      },
+      validation: {
+        plotNameRequired: "प्लॉटचे नाव आवश्यक आहे",
+        nameMinLength: "नाव किमान १० वर्णांचे असणे आवश्यक आहे",
+        nameMaxLength: "नाव ६२ वर्णांपेक्षा जास्त असू शकत नाही",
+        nameLettersOnly: "नावात फक्त अक्षरे आणि स्पेस असू शकतात",
+        addressRequired: "पत्ता आवश्यक आहे",
+        addressMinLength: "कृपया संपूर्ण पत्ता प्रविष्ट करा",
+        addressValid: "कृपया वैध पत्ता प्रविष्ट करा",
+        descriptionRequired: "वर्णन आवश्यक आहे",
+        descriptionMinLength: "वर्णन किमान १० वर्णांचे असणे आवश्यक आहे",
+        plotTypeRequired: "कृपया प्लॉट प्रकार निवडा",
+        plotSubTypeRequired: "कृपया प्लॉट उप-प्रकार निवडा",
+        plotSizeNumber: "प्लॉट आकार संख्यात्मक असणे आवश्यक आहे",
+        plotSizeMin: "प्लॉट आकार ०.०१ पेक्षा कमी असू शकत नाही",
+        plotSizeMax: "प्लॉट आकार १००० पेक्षा जास्त असू शकत नाही",
+        priceNumber: "प्रति युनिट किंमत संख्यात्मक असणे आवश्यक आहे",
+        priceMin: "किंमत ₹१,००० पेक्षा कमी असू शकत नाही",
+        priceMax: "किंमत ₹१०,००,००० पेक्षा जास्त असू शकत नाही",
+        totalPriceNumber: "एकूण किंमत संख्यात्मक असणे आवश्यक आहे",
+        totalPriceMin: "किंमत ₹१,००,००० पेक्षा कमी असू शकत नाही",
+        totalPriceMax: "किंमत ₹५,००,००,००० पेक्षा जास्त असू शकत नाही",
+        imagesRequired: "कृपया किमान एक प्रतिमा अपलोड करा",
+        imagesMax: "तुम्ही जास्तीत जास्त ६ प्रतिमा अपलोड करू शकता",
+        imagesType: "फक्त प्रतिमा फाइल्स परवानगी आहेत",
+        imagesSize: "प्रत्येक प्रतिमा 5MB पेक्षा कमी असावी",
+        videoType: "फक्त व्हिडिओ फाइल्स परवानगी आहेत",
+        videoSize: "व्हिडिओ 50MB पेक्षा कमी असावा"
+      },
+      placeholders: {
+        plotName: "प्लॉटचे नाव प्रविष्ट करा (फक्त अक्षरे)",
+        address: "संपूर्ण पत्ता प्रविष्ट करा",
+        description: "तुमच्या प्लॉटचे तपशीलवार वर्णन करा (किमान १० वर्ण)...",
+        selectPlotType: "प्लॉट प्रकार निवडा",
+        selectSubType: "उप-प्रकार निवडा",
+        selectSizeUnit: "युनिट निवडा",
+        selectPriceUnit: "युनिट निवडा"
+      }
+    }
+  };
+
+  const t = translations[currentLang];
+
+  // Plot type options
+  const plotTypes = [
+    { 
+      id: 'agriculture', 
+      label: t.plotTypeOptions.agriculture,
+      subTypes: [
+        { id: 'land', label: t.plotSubTypes.land },
+        { id: 'vegetable', label: t.plotSubTypes.vegetable },
+        { id: 'fruit', label: t.plotSubTypes.fruit },
+        { id: 'sugarcane', label: t.plotSubTypes.sugarcane },
+        { id: 'banana', label: t.plotSubTypes.banana },
+        { id: 'grapes', label: t.plotSubTypes.grapes }
+      ]
+    },
+    { 
+      id: 'non-agriculture', 
+      label: t.plotTypeOptions.nonAgriculture,
+      subTypes: [
+        { id: 'na', label: t.plotSubTypes.na },
+        { id: 'gunta', label: t.plotSubTypes.gunta }
+      ]
+    },
+    { 
+      id: 'mountain', 
+      label: t.plotTypeOptions.mountain,
+      subTypes: [
+        { id: 'top', label: t.plotSubTypes.top },
+        { id: 'bottom', label: t.plotSubTypes.bottom },
+        { id: 'tilt', label: t.plotSubTypes.tilt }
+      ]
+    }
+  ];
+
+  // Size units
+  const sizeUnits = [
+    { id: 'acre', label: t.sizeUnits.acre },
+    { id: 'guntha', label: t.sizeUnits.guntha },
+    { id: 'hectare', label: t.sizeUnits.hectare }
+  ];
+
+  // Price units
+  const priceUnits = [
+    { id: 'perAcre', label: t.priceUnits.perAcre },
+    { id: 'perGuntha', label: t.priceUnits.perGuntha },
+    { id: 'perSqft', label: t.priceUnits.perSqft },
+    { id: 'perKilo', label: t.priceUnits.perKilo }
+  ];
+
+  // Fetch listing data on component mount
   useEffect(() => {
     const fetchListing = async () => {
-      if (!id) {
-        toast({
-          title: 'Error',
-          description: 'No listing ID provided',
-          variant: 'destructive'
-        });
-        navigate('/listings');
-        return;
-      }
+      if (!id) return;
       
       try {
-        setIsFetching(true);
+        setLoading(true);
         const listingData = await getListingApi(id);
         
-        if (listingData) {
-          setFormData({
-            name: listingData.name || '',
-            description: listingData.description || '',
-            address: listingData.address || '',
-            type: listingData.type || '',
-            bedrooms: listingData.bedrooms || 1,
-            bathrooms: listingData.bathrooms || 1,
-            squareFootage: listingData.squareFootage || 500,
-            contactNumber: listingData.contactNumber || '',
-            regularPrice: listingData.regularPrice || 1000000,
-            discountPrice: listingData.discountPrice || 0,
-            offer: listingData.offer || false,
-            parking: listingData.parking || false,
-            furnished: listingData.furnished || false,
-            userRef: listingData.userRef || localStorage.getItem('userId') || 'public',
-          });
-          
-          setExistingImages(listingData.images || []);
-          setListingId(id);
+        // Populate form with existing data
+        setFormData({
+          name: listingData.name || '',
+          description: listingData.description || '',
+          address: listingData.address || '',
+          type: listingData.type || 'sale',
+          plotType: listingData.plotType || '',
+          plotSubType: listingData.plotSubType || '',
+          plotSize: listingData.plotSize || 0,
+          plotSizeUnit: listingData.plotSizeUnit || 'acre',
+          pricePerUnit: listingData.pricePerUnit || 0,
+          priceUnit: listingData.priceUnit || 'perAcre',
+          totalPrice: listingData.totalPrice || 0,
+          userRef: listingData.userRef || localStorage.getItem('userId') || 'public',
+        });
+        
+        // Set existing images and video
+        if (listingData.images && Array.isArray(listingData.images)) {
+          setExistingImages(listingData.images);
+        }
+        
+        if (listingData.videos && Array.isArray(listingData.videos) && listingData.videos.length > 0) {
+          setExistingVideo(listingData.videos[0]);
         }
       } catch (error) {
         console.error('Error fetching listing:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load listing data',
-          variant: 'destructive'
-        });
-        navigate('/listings');
+        setSubmitError(t.somethingWentWrong);
       } finally {
-        setIsFetching(false);
+        setLoading(false);
       }
     };
     
     fetchListing();
-  }, [id, toast, navigate]);
+  }, [id, t.somethingWentWrong]);
 
   // Validation functions
   const validateName = (name: string) => {
-    if (!name.trim()) return 'Property name is required';
-    if (name.length < 10) return 'Name must be at least 10 characters';
-    if (name.length > 62) return 'Name cannot exceed 62 characters';
-    if (!/^[a-zA-Z\s]+$/.test(name)) return 'Name can only contain letters and spaces';
+    if (!name.trim()) return t.validation.plotNameRequired;
+    if (name.length < 10) return t.validation.nameMinLength;
+    if (name.length > 62) return t.validation.nameMaxLength;
+    if (!/^[a-zA-Z\s]+$/.test(name)) return t.validation.nameLettersOnly;
     return '';
   };
 
   const validateAddress = (address: string) => {
-    if (!address.trim()) return 'Address is required';
-    if (address.length < 15) return 'Please enter a complete address';
-    if (!/^[a-zA-Z0-9\s,.-]+$/.test(address)) return 'Please enter a valid address';
+    if (!address.trim()) return t.validation.addressRequired;
+    if (address.length < 15) return t.validation.addressMinLength;
+    if (!/^[a-zA-Z0-9\s,.-]+$/.test(address)) return t.validation.addressValid;
     return '';
   };
 
   const validateDescription = (description: string) => {
-    if (!description.trim()) return 'Description is required';
-    if (description.length < 50) return 'Description must be at least 50 characters';
-    const words = description.split(/\s+/).filter(word => word.length >= 3);
-    if (words.length < 5) return 'Description should contain meaningful content';
-    return '';
-  };
-
-  const validateContactNumber = (number: string) => {
-    if (!number.trim()) return 'Contact number is required';
-    if (!/^[0-9]{10}$/.test(number)) return 'Please enter a valid 10-digit phone number';
+    if (!description.trim()) return t.validation.descriptionRequired;
+    if (description.length < 10) return t.validation.descriptionMinLength;
     return '';
   };
 
@@ -162,34 +434,48 @@ const EditListing = () => {
     return '';
   };
 
-  const validateSquareFootage = (value: number) => {
-    return validateNumber(value, 'Square footage', 500, 10000);
+  const validatePlotSize = (value: number) => {
+    return validateNumber(value, 'Plot size', 0.01, 1000);
   };
 
-  const validatePrice = (price: number, isDiscount = false) => {
-    if (isNaN(price)) return 'Price must be a number';
-    if (price < (isDiscount ? 0 : 1000000)) return `Price cannot be less than ${isDiscount ? '0' : '₹10,00,000'}`;
-    if (price > 20000000) return 'Price cannot exceed ₹2,00,00,000';
+  const validatePricePerUnit = (price: number) => {
+    if (isNaN(price)) return t.validation.priceNumber;
+    if (price < 1000) return t.validation.priceMin;
+    if (price > 1000000) return t.validation.priceMax;
     return '';
   };
 
-  const validateDiscountPrice = (discountPrice: number, regularPrice: number) => {
-    if (discountPrice > 0 && discountPrice >= regularPrice) return 'Discount price must be less than regular price';
-    return validatePrice(discountPrice, true);
+  const validateTotalPrice = (price: number) => {
+    if (isNaN(price)) return t.validation.totalPriceNumber;
+    if (price < 100000) return t.validation.totalPriceMin;
+    if (price > 50000000) return t.validation.totalPriceMax;
+    return '';
   };
 
-  const validateImages = (files: File[], existingCount: number) => {
-    const totalCount = files.length + existingCount - imagesToDelete.length;
-    if (totalCount === 0) return 'Please upload at least one image';
-    if (totalCount > 6) return 'You can have a maximum of 6 images';
+  const validateImages = (files: File[]) => {
+    if (files.length > 6) return t.validation.imagesMax;
     
     for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        return 'Only image files are allowed';
+        return t.validation.imagesType;
       }
       if (file.size > 5 * 1024 * 1024) {
-        return 'Each image should be less than 5MB';
+        return t.validation.imagesSize;
       }
+    }
+    
+    return '';
+  };
+
+  const validateVideo = (file: File | null) => {
+    if (!file) return '';
+    
+    if (!file.type.startsWith('video/')) {
+      return t.validation.videoType;
+    }
+    
+    if (file.size > 50 * 1024 * 1024) {
+      return t.validation.videoSize;
     }
     
     return '';
@@ -204,25 +490,19 @@ const EditListing = () => {
         return validateAddress(value);
       case 'description':
         return validateDescription(value);
-      case 'contactNumber':
-        return validateContactNumber(value);
-      case 'bedrooms':
-        return validateNumber(value, 'Bedrooms', 1, 6);
-      case 'bathrooms':
-        return validateNumber(value, 'Bathrooms', 1, 6);
-      case 'squareFootage':
-        return validateSquareFootage(value);
-      case 'regularPrice':
-        return validatePrice(value);
-      case 'discountPrice':
-        return validateDiscountPrice(value, formData.regularPrice);
+      case 'plotSize':
+        return validatePlotSize(value);
+      case 'pricePerUnit':
+        return validatePricePerUnit(value);
+      case 'totalPrice':
+        return validateTotalPrice(value);
       default:
         return '';
     }
   };
 
   // Handle input changes with validation
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     
     if (id === 'sale' || id === 'rent') {
@@ -231,37 +511,65 @@ const EditListing = () => {
       return;
     }
     
-    if (['parking', 'furnished', 'offer'].includes(id)) {
-      const checked = (e.target as HTMLInputElement).checked;
+    if (id === 'plotType') {
       setFormData({ 
         ...formData, 
-        [id]: checked,
-        // Reset discount price if offer is unchecked
-        ...(id === 'offer' && !checked ? { discountPrice: 0 } : {})
+        plotType: value,
+        plotSubType: '' // Reset sub-type when main type changes
       });
       
-      // Clear discount price error if offer is unchecked
-      if (id === 'offer' && !checked) {
-        setErrors({ ...errors, discountPrice: '' });
-      }
+      setErrors({
+        ...errors,
+        plotType: '',
+        plotSubType: ''
+      });
+      return;
+    }
+    
+    if (id === 'plotSubType') {
+      setFormData({ 
+        ...formData, 
+        plotSubType: value
+      });
+      
+      setErrors({
+        ...errors,
+        plotSubType: ''
+      });
+      return;
+    }
+    
+    if (id === 'plotSizeUnit' || id === 'priceUnit') {
+      setFormData({ 
+        ...formData, 
+        [id]: value
+      });
       return;
     }
     
     const isNumber = e.target.type === 'number';
-    let newValue = isNumber ? parseInt(value) || 0 : value;
+    let newValue = isNumber ? parseFloat(value) || 0 : value;
     
-    // Prevent zero values for certain fields
-    if (isNumber && ['bedrooms', 'bathrooms', 'regularPrice', 'squareFootage'].includes(id) && newValue === 0) {
-      return;
+    // Calculate total price if plotSize or pricePerUnit changes
+    if ((id === 'plotSize' || id === 'pricePerUnit') && formData.plotSize > 0 && formData.pricePerUnit > 0) {
+      const plotSize = id === 'plotSize' ? newValue : formData.plotSize;
+      const pricePerUnit = id === 'pricePerUnit' ? newValue : formData.pricePerUnit;
+      const totalPrice = Number(plotSize) * Number(pricePerUnit);
+      
+      setFormData({
+        ...formData,
+        [id]: newValue,
+        totalPrice: totalPrice
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [id]: newValue,
+      });
     }
     
-    setFormData({
-      ...formData,
-      [id]: newValue,
-    });
-    
     // Validate the field and set error
-    if (id !== 'type') {
+    if (id !== 'type' && id !== 'plotType' && id !== 'plotSubType' && id !== 'plotSizeUnit' && id !== 'priceUnit') {
       setErrors({
         ...errors,
         [id]: validateField(id, newValue)
@@ -278,18 +586,16 @@ const EditListing = () => {
 
   // Handle increment/decrement for number inputs
   const handleNumberChange = (field: string, increment: boolean) => {
-    const currentValue = formData[field as keyof typeof formData] as number;
+    const currentValue = formData[field as keyof FormData] as number;
     let newValue = increment ? currentValue + 1 : currentValue - 1;
     
     // Set minimum values
-    if (field === 'bedrooms' || field === 'bathrooms') {
-      newValue = Math.max(1, Math.min(6, newValue));
-    } else if (field === 'regularPrice') {
-      newValue = Math.max(1000000, Math.min(20000000, newValue));
-    } else if (field === 'squareFootage') {
-      newValue = Math.max(500, Math.min(10000, newValue));
-    } else if (field === 'discountPrice') {
-      newValue = Math.max(0, Math.min(formData.regularPrice - 1, newValue));
+    if (field === 'plotSize') {
+      newValue = Math.max(0.01, Math.min(1000, newValue));
+    } else if (field === 'pricePerUnit') {
+      newValue = Math.max(1000, Math.min(1000000, newValue));
+    } else if (field === 'totalPrice') {
+      newValue = Math.max(100000, Math.min(50000000, newValue));
     }
     
     setFormData({
@@ -303,65 +609,243 @@ const EditListing = () => {
     });
   };
 
-  // Handle image upload
+  // Handle image upload with preview
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles) return;
     
     const filesArray = Array.from(selectedFiles);
-    const imageError = validateImages(filesArray, existingImages.length);
+    const newFiles = [...files, ...filesArray].slice(0, 6); // Limit to 6 images
     
+    const imageError = validateImages(newFiles);
     if (imageError) {
       setImageUploadError(imageError);
       return;
     }
     
-    setFiles(filesArray);
+    setFiles(newFiles);
     setImageUploadError('');
   };
 
-  // Mark existing image for deletion
-  const handleDeleteImage = (imageUrl: string) => {
-    setImagesToDelete([...imagesToDelete, imageUrl]);
+  // Handle video upload
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    
+    const videoError = validateVideo(selectedFile);
+    if (videoError) {
+      setVideoUploadError(videoError);
+      return;
+    }
+    
+    setVideoFile(selectedFile);
+    setVideoUploadError('');
   };
 
-  // Restore existing image
-  const handleRestoreImage = (imageUrl: string) => {
-    setImagesToDelete(imagesToDelete.filter(url => url !== imageUrl));
+  // Remove specific image
+  const removeImage = (index: number) => {
+    const newFiles = files.filter((_, i) => i !== index);
+    setFiles(newFiles);
+    setImageUploadError('');
+  };
+
+  // Remove existing image
+  const removeExistingImage = (index: number) => {
+    const imageToDelete = existingImages[index];
+    setImagesToDelete([...imagesToDelete, imageToDelete]);
+    setExistingImages(existingImages.filter((_, i) => i !== index));
+  };
+
+  // Remove video
+  const removeVideo = () => {
+    setVideoFile(null);
+    setVideoUploadError('');
+  };
+
+  // Remove existing video
+  const removeExistingVideo = () => {
+    setExistingVideo(null);
+  };
+
+  // Replace specific image
+  const replaceImage = (index: number) => {
+    if (imageInputRef.current) {
+      imageInputRef.current.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          if (file.size > 5 * 1024 * 1024) {
+            setImageUploadError(t.validation.imagesSize);
+            return;
+          }
+          if (!file.type.startsWith('image/')) {
+            setImageUploadError(t.validation.imagesType);
+            return;
+          }
+          
+          const newFiles = [...files];
+          newFiles[index] = file;
+          setFiles(newFiles);
+          setImageUploadError('');
+        }
+      };
+      imageInputRef.current.click();
+    }
+  };
+
+  // Replace existing image
+  const replaceExistingImage = (index: number) => {
+    if (imageInputRef.current) {
+      imageInputRef.current.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          if (file.size > 5 * 1024 * 1024) {
+            setImageUploadError(t.validation.imagesSize);
+            return;
+          }
+          if (!file.type.startsWith('image/')) {
+            setImageUploadError(t.validation.imagesType);
+            return;
+          }
+          
+          // Add the existing image to delete list and add new file
+          const imageToDelete = existingImages[index];
+          setImagesToDelete([...imagesToDelete, imageToDelete]);
+          
+          const newExistingImages = [...existingImages];
+          newExistingImages.splice(index, 1);
+          setExistingImages(newExistingImages);
+          
+          setFiles([...files, file]);
+          setImageUploadError('');
+        }
+      };
+      imageInputRef.current.click();
+    }
+  };
+
+  // Replace video
+  const replaceVideo = () => {
+    if (videoInputRef.current) {
+      videoInputRef.current.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const videoError = validateVideo(file);
+          if (videoError) {
+            setVideoUploadError(videoError);
+            return;
+          }
+          
+          setVideoFile(file);
+          setVideoUploadError('');
+        }
+      };
+      videoInputRef.current.click();
+    }
+  };
+
+  // Replace existing video
+  const replaceExistingVideo = () => {
+    if (videoInputRef.current) {
+      videoInputRef.current.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const videoError = validateVideo(file);
+          if (videoError) {
+            setVideoUploadError(videoError);
+            return;
+          }
+          
+          setExistingVideo(null);
+          setVideoFile(file);
+          setVideoUploadError('');
+        }
+      };
+      videoInputRef.current.click();
+    }
   };
 
   // Upload images after text data is submitted
   const uploadImages = async () => {
-    if (!listingId) return;
+    if (!id || (files.length === 0 && imagesToDelete.length === 0)) {
+      return;
+    }
     
     try {
       setUploading(true);
+      setImageUploadError('');
       
-      // First delete marked images if any
-      if (imagesToDelete.length > 0) {
-        // You would need to implement an API endpoint for deleting images
-        // await deleteImagesApi(listingId, imagesToDelete);
-        console.log('Images to delete:', imagesToDelete);
+      const imageError = validateImages(files);
+      if (imageError) {
+        setImageUploadError(imageError);
+        return;
       }
       
-      // Then upload new images
+      // Delete marked images
+      for (const imageUrl of imagesToDelete) {
+        await deleteImageApi(id, imageUrl);
+      }
+      
+      // Upload new images
       if (files.length > 0) {
-        await uploadImagesApi(listingId, files);
+        await uploadImagesApi(id, files);
       }
       
       toast({ 
-        title: 'Success', 
-        description: 'Listing updated successfully!',
+        title: t.success, 
+        description: t.imagesUploaded,
         variant: 'default'
       });
       
-      navigate(`/listing/${listingId}`);
+      // If video is also selected, upload it too
+      if (videoFile) {
+        await uploadVideo();
+      } else {
+        navigate('/properties');
+      }
     } catch (e: any) {
       console.error('Error uploading images:', e);
-      setImageUploadError(e.message || 'Failed to upload images');
+      setImageUploadError(e.message || t.failedUploadImages);
     } finally {
       setUploading(false);
     }
+  };
+
+  // Upload video
+  const uploadVideo = async () => {
+    if (!id || !videoFile) {
+      return;
+    }
+    
+    try {
+      setUploadingVideo(true);
+      setVideoUploadError('');
+      
+      const videoError = validateVideo(videoFile);
+      if (videoError) {
+        setVideoUploadError(videoError);
+        return;
+      }
+      
+      await uploadVideoApi(id, videoFile);
+      
+      toast({ 
+        title: t.success, 
+        description: t.videoUploaded,
+        variant: 'default'
+      });
+      
+      navigate('/properties');
+    } catch (e: any) {
+      console.error('Error uploading video:', e);
+      setVideoUploadError(e.message || t.failedUploadVideo);
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  // Upload both images and video
+  const uploadMedia = async () => {
+    await uploadImages();
   };
 
   // Validate entire form before submission
@@ -370,18 +854,17 @@ const EditListing = () => {
       name: validateName(formData.name),
       description: validateDescription(formData.description),
       address: validateAddress(formData.address),
-      type: formData.type ? '' : 'Please select either Rent or Sell',
-      bedrooms: validateNumber(formData.bedrooms, 'Bedrooms', 1, 6),
-      bathrooms: validateNumber(formData.bathrooms, 'Bathrooms', 1, 6),
-      squareFootage: validateSquareFootage(formData.squareFootage),
-      contactNumber: validateContactNumber(formData.contactNumber),
-      regularPrice: validatePrice(formData.regularPrice),
-      discountPrice: formData.offer ? validateDiscountPrice(formData.discountPrice, formData.regularPrice) : '',
-      images: validateImages(files, existingImages.length)
+      type: '',
+      plotType: formData.plotType ? '' : t.validation.plotTypeRequired,
+      plotSubType: formData.plotSubType ? '' : t.validation.plotSubTypeRequired,
+      plotSize: validatePlotSize(formData.plotSize),
+      pricePerUnit: validatePricePerUnit(formData.pricePerUnit),
+      totalPrice: validateTotalPrice(formData.totalPrice),
+      images: '',
+      video: ''
     };
     
     setErrors(newErrors);
-    
     return !Object.values(newErrors).some(error => error !== '');
   };
 
@@ -389,80 +872,27 @@ const EditListing = () => {
     e.preventDefault();
     
     if (!validateForm()) {
-      setSubmitError('Please fix the errors in the form');
+      setSubmitError(t.pleaseFixErrors);
       return;
     }
     
     try {
-      setLoading(true);
+      setUpdating(true);
       setSubmitError('');
 
-      if (!id) {
-        throw new Error('Listing ID is required for update');
-      }
-      
-      // Prepare data for submission - ensure discountPrice is 0 if offer is false
-      // Also ensure discountPrice is valid
-      const submissionData = {
-        ...formData,
-        discountPrice: formData.offer && formData.discountPrice > 0 && formData.discountPrice < formData.regularPrice 
-          ? formData.discountPrice 
-          : 0
-      };
-      
-      await updateListingApi(id, submissionData);
-      setListingId(id);
+      await updateListingApi(id!, formData);
       setTextDataSubmitted(true);
       
       toast({ 
-        title: 'Success', 
-        description: 'Listing updated successfully! You can now update images.',
+        title: t.success, 
+        description: t.plotUpdated,
         variant: 'default'
       });
     } catch (e: any) {
       console.error('Error updating listing:', e);
-      
-      // Handle specific validation errors from the server
-      if (e.message && e.message.includes('discountPrice')) {
-        setErrors({
-          ...errors,
-          discountPrice: 'Discount price must be less than regular price'
-        });
-        setSubmitError('Please fix the discount price validation error');
-      } else {
-        setSubmitError(e.message || 'Something went wrong. Please try again.');
-      }
+      setSubmitError(e.message || t.somethingWentWrong);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle delete listing
-  const handleDeleteListing = async () => {
-    if (!id || !confirm('Are you sure you want to delete this listing? This action cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      await deleteListingApi(id);
-      
-      toast({ 
-        title: 'Success', 
-        description: 'Listing deleted successfully!',
-        variant: 'default'
-      });
-      
-      navigate('/listings');
-    } catch (e: any) {
-      console.error('Error deleting listing:', e);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete listing',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
+      setUpdating(false);
     }
   };
 
@@ -483,7 +913,7 @@ const EditListing = () => {
     const value = e.target.value;
     const numericValue = parsePrice(value);
     
-    if (field === 'regularPrice' && numericValue === 0) {
+    if (field === 'pricePerUnit' && numericValue === 0) {
       return;
     }
     
@@ -494,15 +924,23 @@ const EditListing = () => {
     
     setErrors({
       ...errors,
-      [field]: field === 'discountPrice' 
-        ? validateDiscountPrice(numericValue, formData.regularPrice) 
-        : validatePrice(numericValue)
+      [field]: validateField(field, numericValue)
     });
   };
 
-  if (isFetching) {
+  // Get current plot type
+  const getCurrentPlotType = () => {
+    return plotTypes.find(pt => pt.id === formData.plotType);
+  };
+
+  // Toggle language
+  const toggleLanguage = () => {
+    onLanguageChange(currentLang === 'en' ? 'mr' : 'en');
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading listing data...</p>
@@ -512,58 +950,46 @@ const EditListing = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-3">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <Button 
-            variant="ghost" 
+            variant="outline" 
             onClick={() => navigate(-1)}
-            className="flex items-center gap-1"
+            className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {currentLang === 'en' ? 'Back' : 'मागे जा'}
           </Button>
           
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg">
-                <Home className="h-5 w-5 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Edit Property Listing</h1>
-            </div>
-            <p className="text-sm text-gray-600">Update your property listing details</p>
+            <p className="text-sm text-gray-600">{t.header}</p>
           </div>
           
-          <Button 
-            variant="destructive" 
-            onClick={handleDeleteListing}
-            className="flex items-center gap-1"
+          <Button
+            variant="outline"
+            onClick={toggleLanguage}
+            className="flex items-center gap-2"
           >
-            <Trash2 className="h-4 w-4" />
-            Delete
+            <Languages className="h-4 w-4" />
+            {currentLang === 'en' ? 'मराठी' : 'English'}
           </Button>
         </div>
 
         {!textDataSubmitted ? (
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Left Column - Basic Info */}
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* Left Column - Plot Information */}
             <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  Basic Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-4">
                 <div className="space-y-1">
                   <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                    Property Name <span className="text-red-500">*</span>
+                    {t.plotName} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="name"
                     type="text"
-                    placeholder="Enter property name (letters only)"
+                    placeholder={t.placeholders.plotName}
                     maxLength={62}
                     required
                     onChange={handleChange}
@@ -577,16 +1003,255 @@ const EditListing = () => {
                     </p>
                   )}
                 </div>
-                
+
+                {/* Plot Type */}
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-700">
+                    {t.plotType} <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="plotType"
+                    className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+                    onChange={handleChange}
+                    value={formData.plotType}
+                    required
+                  >
+                    <option value="">{t.placeholders.selectPlotType}</option>
+                    {plotTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.plotType && (
+                    <p className="text-red-600 text-xs flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.plotType}
+                    </p>
+                  )}
+                </div>
+
+                {/* Plot Sub-Type */}
+                {formData.plotType && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-gray-700">
+                      {t.plotSubType} <span className="text-red-500">*</span>
+                    </Label>
+                    <select
+                      id="plotSubType"
+                      className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+                      onChange={handleChange}
+                      value={formData.plotSubType}
+                      required
+                    >
+                      <option value="">{t.placeholders.selectSubType}</option>
+                      {getCurrentPlotType()?.subTypes.map((subType) => (
+                        <option key={subType.id} value={subType.id}>
+                          {subType.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.plotSubType && (
+                      <p className="text-red-600 text-xs flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errors.plotSubType}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Plot Size with Unit Dropdown */}
+                <div className="space-y-1">
+                  <Label htmlFor="plotSize" className="text-sm font-medium text-gray-700">
+                    <Ruler className="h-3 w-3 inline mr-1" />
+                    {t.plotSize} <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 rounded-r-none"
+                          onClick={() => handleNumberChange('plotSize', false)}
+                          disabled={formData.plotSize <= 0.01}
+                        >
+                          -
+                        </Button>
+                        <Input
+                          type="number"
+                          id="plotSize"
+                          min="0.01"
+                          max="1000"
+                          step="0.01"
+                          required
+                          className="h-9 text-center rounded-none border-l-0 border-r-0"
+                          onChange={handleChange}
+                          onKeyDown={(e) => handleNumberInput(e, 'plotSize')}
+                          value={formData.plotSize}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 rounded-l-none"
+                          onClick={() => handleNumberChange('plotSize', true)}
+                          disabled={formData.plotSize >= 1000}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="w-28">
+                      <select
+                        id="plotSizeUnit"
+                        className="w-full h-9 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+                        onChange={handleChange}
+                        value={formData.plotSizeUnit}
+                      >
+                        {sizeUnits.map((unit) => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {errors.plotSize && (
+                    <p className="text-red-600 text-xs flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.plotSize}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Right Column - Pricing & Description */}
+            <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+              <CardContent className="space-y-3 p-4">
+                {/* Price Per Unit with Unit Dropdown */}
+                <div className="space-y-1">
+                  <Label htmlFor="pricePerUnit" className="text-sm font-medium text-gray-700">
+                    {t.pricePerUnit} <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 rounded-r-none"
+                          onClick={() => handleNumberChange('pricePerUnit', false)}
+                          disabled={formData.pricePerUnit <= 1000}
+                        >
+                          -
+                        </Button>
+                        <div className="relative flex-1">
+                          <Input
+                            type="text"
+                            id="pricePerUnit"
+                            required
+                            className="h-9 text-sm pl-6 rounded-none border-l-0 border-r-0"
+                            onChange={(e) => handlePriceChange(e, 'pricePerUnit')}
+                            value={formatPrice(formData.pricePerUnit)}
+                          />
+                          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 rounded-l-none"
+                          onClick={() => handleNumberChange('pricePerUnit', true)}
+                          disabled={formData.pricePerUnit >= 1000000}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="w-28">
+                      <select
+                        id="priceUnit"
+                        className="w-full h-9 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+                        onChange={handleChange}
+                        value={formData.priceUnit}
+                      >
+                        {priceUnits.map((unit) => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {errors.pricePerUnit && (
+                    <p className="text-red-600 text-xs flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.pricePerUnit}
+                    </p>
+                  )}
+                </div>
+
+                {/* Total Price (calculated automatically) */}
+                <div className="space-y-1">
+                  <Label htmlFor="totalPrice" className="text-sm font-medium text-gray-700">
+                    {t.totalPrice} <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 rounded-r-none"
+                      onClick={() => handleNumberChange('totalPrice', false)}
+                      disabled={formData.totalPrice <= 100000}
+                    >
+                      -
+                    </Button>
+                    <div className="relative flex-1">
+                      <Input
+                        type="text"
+                        id="totalPrice"
+                        required
+                        className="h-9 text-sm pl-6 rounded-none border-l-0 border-r-0 bg-gray-100"
+                        value={formatPrice(formData.totalPrice)}
+                        readOnly
+                      />
+                      <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 rounded-l-none"
+                      onClick={() => handleNumberChange('totalPrice', true)}
+                      disabled={formData.totalPrice >= 50000000}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  
+                  {errors.totalPrice && (
+                    <p className="text-red-600 text-xs flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.totalPrice}
+                    </p>
+                  )}
+                </div>
+
+                {/* Address */}
                 <div className="space-y-1">
                   <Label htmlFor="address" className="text-sm font-medium text-gray-700">
                     <MapPin className="h-3 w-3 inline mr-1" />
-                    Address <span className="text-red-500">*</span>
+                    {t.address} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="address"
                     type="text"
-                    placeholder="Enter complete address"
+                    placeholder={t.placeholders.address}
                     required
                     onChange={handleChange}
                     value={formData.address}
@@ -600,40 +1265,17 @@ const EditListing = () => {
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="contactNumber" className="text-sm font-medium text-gray-700">
-                    <Phone className="h-3 w-3 inline mr-1" />
-                    Contact Number <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="contactNumber"
-                    type="tel"
-                    placeholder="Enter 10-digit phone number"
-                    pattern="[0-9]{10}"
-                    maxLength={10}
-                    required
-                    onChange={handleChange}
-                    value={formData.contactNumber}
-                    className="h-9 text-sm"
-                  />
-                  {errors.contactNumber && (
-                    <p className="text-red-600 text-xs flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.contactNumber}
-                    </p>
-                  )}
-                </div>
-
+                {/* Description */}
                 <div className="space-y-1">
                   <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                    Description <span className="text-red-500">*</span>
+                    {t.description} <span className="text-red-500">*</span>
                   </Label>
                   <textarea
                     id="description"
-                    placeholder="Describe your property in detail (minimum 50 characters)..."
+                    placeholder={t.placeholders.description}
                     className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none text-sm"
                     required
-                    rows={2}
+                    rows={3}
                     onChange={handleChange}
                     value={formData.description}
                   />
@@ -644,384 +1286,9 @@ const EditListing = () => {
                     </p>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Middle Column - Property Details */}
-            <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Home className="h-4 w-4 text-blue-600" />
-                  Property Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Property Type */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Property Type <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer transition-all text-sm ${
-                      formData.type === 'sale' 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        id="sale"
-                        className="w-4 h-4 text-blue-600"
-                        onChange={handleChange}
-                        checked={formData.type === 'sale'}
-                      />
-                      <span className="font-medium">For Sale</span>
-                    </label>
-                    
-                    <label className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer transition-all text-sm ${
-                      formData.type === 'rent' 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        id="rent"
-                        className="w-4 h-4 text-blue-600"
-                        onChange={handleChange}
-                        checked={formData.type === 'rent'}
-                      />
-                      <span className="font-medium">For Rent</span>
-                    </label>
-                  </div>
-                  {errors.type && (
-                    <p className="text-red-600 text-xs flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.type}
-                    </p>
-                  )}
-                </div>
-
-                {/* Square Footage */}
-                <div className="space-y-1">
-                  <Label htmlFor="squareFootage" className="text-sm font-medium text-gray-700">
-                    <Ruler className="h-3 w-3 inline mr-1" />
-                    Square Footage (sq ft) <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 rounded-r-none"
-                      onClick={() => handleNumberChange('squareFootage', false)}
-                      disabled={formData.squareFootage <= 500}
-                    >
-                      -
-                    </Button>
-                    <Input
-                      type="number"
-                      id="squareFootage"
-                      min="500"
-                      max="10000"
-                      required
-                      className="h-9 text-center rounded-none border-l-0 border-r-0"
-                      onChange={handleChange}
-                      onKeyDown={(e) => handleNumberInput(e, 'squareFootage')}
-                      value={formData.squareFootage}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 rounded-l-none"
-                      onClick={() => handleNumberChange('squareFootage', true)}
-                      disabled={formData.squareFootage >= 10000}
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {errors.squareFootage && (
-                    <p className="text-red-600 text-xs flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.squareFootage}
-                    </p>
-                  )}
-                </div>
-
-                {/* Property Features */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Property Features</Label>
-                  <div className="grid grid-cols-1 gap-2">
-                    <label className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer transition-all text-sm ${
-                      formData.parking 
-                        ? 'border-green-500 bg-green-50 text-green-700' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        id="parking"
-                        className="w-4 h-4 text-green-600"
-                        onChange={handleChange}
-                        checked={formData.parking}
-                      />
-                      <Car className="h-4 w-4" />
-                      <span className="font-medium">Parking</span>
-                    </label>
-
-                    <label className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer transition-all text-sm ${
-                      formData.furnished 
-                        ? 'border-green-500 bg-green-50 text-green-700' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        id="furnished"
-                        className="w-4 h-4 text-green-600"
-                        onChange={handleChange}
-                        checked={formData.furnished}
-                      />
-                      <Sofa className="h-4 w-4" />
-                      <span className="font-medium">Furnished</span>
-                    </label>
-
-                    <label className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer transition-all text-sm ${
-                      formData.offer 
-                        ? 'border-orange-500 bg-orange-50 text-orange-700' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        id="offer"
-                        className="w-4 h-4 text-orange-600"
-                        onChange={handleChange}
-                        checked={formData.offer}
-                      />
-                      <Tag className="h-4 w-4" />
-                      <span className="font-medium">Special Offer</span>
-                    </label>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Right Column - Pricing & Submit */}
-            <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <DollarSign className="h-4 w-4 text-blue-600" />
-                  Details & Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Room Details */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="bedrooms" className="text-sm font-medium text-gray-700">
-                      <Bed className="h-3 w-3 inline mr-1" />
-                      Bedrooms <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-r-none"
-                        onClick={() => handleNumberChange('bedrooms', false)}
-                        disabled={formData.bedrooms <= 1}
-                      >
-                        -
-                      </Button>
-                      <Input
-                        type="number"
-                        id="bedrooms"
-                        min="1"
-                        max="6"
-                        required
-                        className="h-9 text-center rounded-none border-l-0 border-r-0"
-                        onChange={handleChange}
-                        onKeyDown={(e) => handleNumberInput(e, 'bedrooms')}
-                        value={formData.bedrooms}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-l-none"
-                        onClick={() => handleNumberChange('bedrooms', true)}
-                        disabled={formData.bedrooms >= 6}
-                      >
-                        +
-                      </Button>
-                    </div>
-                    {errors.bedrooms && (
-                      <p className="text-red-600 text-xs flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.bedrooms}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="bathrooms" className="text-sm font-medium text-gray-700">
-                      <Bath className="h-3 w-3 inline mr-1" />
-                      Bathrooms <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-r-none"
-                        onClick={() => handleNumberChange('bathrooms', false)}
-                        disabled={formData.bathrooms <= 1}
-                      >
-                        -
-                      </Button>
-                      <Input
-                        type="number"
-                        id="bathrooms"
-                        min="1"
-                        max="6"
-                        required
-                        className="h-9 text-center rounded-none border-l-0 border-r-0"
-                        onChange={handleChange}
-                        onKeyDown={(e) => handleNumberInput(e, 'bathrooms')}
-                        value={formData.bathrooms}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-l-none"
-                        onClick={() => handleNumberChange('bathrooms', true)}
-                        disabled={formData.bathrooms >= 6}
-                      >
-                        +
-                      </Button>
-                    </div>
-                    {errors.bathrooms && (
-                      <p className="text-red-600 text-xs flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.bathrooms}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Pricing */}
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="regularPrice" className="text-sm font-medium text-gray-700">
-                      Regular Price (₹10L - ₹2Cr) <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-r-none"
-                        onClick={() => handleNumberChange('regularPrice', false)}
-                        disabled={formData.regularPrice <= 1000000}
-                      >
-                        -
-                      </Button>
-                      <div className="relative flex-1">
-                        <Input
-                          type="text"
-                          id="regularPrice"
-                          required
-                          className="h-9 text-sm pl-6 rounded-none border-l-0 border-r-0"
-                          onChange={(e) => handlePriceChange(e, 'regularPrice')}
-                          value={formatPrice(formData.regularPrice)}
-                        />
-                        <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-l-none"
-                        onClick={() => handleNumberChange('regularPrice', true)}
-                        disabled={formData.regularPrice >= 20000000}
-                      >
-                        +
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {formData.type === 'rent' ? 'Per month' : 'Total price'}
-                    </p>
-                    {errors.regularPrice && (
-                      <p className="text-red-600 text-xs flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.regularPrice}
-                      </p>
-                    )}
-                  </div>
-
-                  {formData.offer && (
-                    <div className="space-y-1">
-                      <Label htmlFor="discountPrice" className="text-sm font-medium text-gray-700">
-                        Discount Price <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="flex items-center">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 rounded-r-none"
-                          onClick={() => handleNumberChange('discountPrice', false)}
-                          disabled={formData.discountPrice <= 0}
-                        >
-                          -
-                        </Button>
-                        <div className="relative flex-1">
-                          <Input
-                            type="text"
-                            id="discountPrice"
-                            required
-                            className="h-9 text-sm pl-6 rounded-none border-l-0 border-r-0"
-                            onChange={(e) => handlePriceChange(e, 'discountPrice')}
-                            value={formatPrice(formData.discountPrice)}
-                          />
-                          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 rounded-l-none"
-                          onClick={() => handleNumberChange('discountPrice', true)}
-                          disabled={formData.discountPrice >= formData.regularPrice - 1}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {formData.type === 'rent' ? 'Per month' : 'Total price'}
-                      </p>
-                      {errors.discountPrice && (
-                        <p className="text-red-600 text-xs flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {errors.discountPrice}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {formData.offer && formData.regularPrice > 0 && formData.discountPrice > 0 && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                      <div className="flex items-center gap-1 text-green-700 text-sm">
-                        <Tag className="h-3 w-3" />
-                        <span className="font-medium">
-                          Savings: ₹{formatPrice(formData.regularPrice - formData.discountPrice)}
-                          {formData.type === 'rent' ? '/month' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
 
                 {/* Submit Button and Error */}
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2 pt-1">
                   {submitError && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-2">
                       <p className="text-red-700 text-sm text-center flex items-center justify-center gap-1">
@@ -1032,20 +1299,17 @@ const EditListing = () => {
                   )}
                   
                   <Button 
-                    disabled={loading} 
+                    disabled={updating} 
                     className="w-full h-10 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl" 
                     type="submit"
                   >
-                    {loading ? (
+                    {updating ? (
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Updating...
+                        {t.updating}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Save className="h-4 w-4" />
-                        Update Property Listing
-                      </div>
+                      t.updatePlotListing
                     )}
                   </Button>
                 </div>
@@ -1053,63 +1317,34 @@ const EditListing = () => {
             </Card>
           </form>
         ) : (
-          /* Image Upload Section (visible after text data is submitted) */
-          <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm max-w-2xl mx-auto">
+          /* Media Upload Section with Enhanced Preview and Edit */
+          <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm max-w-4xl mx-auto">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Upload className="h-4 w-4 text-blue-600" />
-                Update Property Images
+                {t.uploadPlotMedia} ({existingImages.length + files.length}/6 images, {(existingVideo || videoFile) ? '1' : '0'}/1 video)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Existing Images */}
-              {existingImages.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Existing Images
-                  </Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {existingImages.map((imageUrl, index) => {
-                      const isMarkedForDeletion = imagesToDelete.includes(imageUrl);
-                      return (
-                        <div key={index} className={`relative border rounded-md overflow-hidden ${isMarkedForDeletion ? 'opacity-50' : ''}`}>
-                          <img
-                            src={imageUrl}
-                            alt={`Existing ${index + 1}`}
-                            className="w-full h-20 object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => isMarkedForDeletion ? handleRestoreImage(imageUrl) : handleDeleteImage(imageUrl)}
-                            className={`absolute top-1 right-1 p-1 rounded-full ${isMarkedForDeletion ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
-                          >
-                            {isMarkedForDeletion ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            ) : (
-                              <Trash2 className="h-3 w-3" />
-                            )}
-                          </button>
-                          <span className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                            {index + 1}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {imagesToDelete.length > 0 && (
-                    <p className="text-xs text-gray-500">
-                      {imagesToDelete.length} image(s) marked for deletion
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* New Image Upload */}
+              {/* Hidden file inputs for replace functionality */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                style={{ display: 'none' }}
+              />
+              
+              {/* Image Upload Input */}
               <div className="space-y-2">
                 <Label htmlFor="images" className="text-sm font-medium text-gray-700">
-                  Add More Images <span className="text-red-500">*</span>
+                  {t.selectImages}
                 </Label>
                 <Input
                   id="images"
@@ -1118,9 +1353,10 @@ const EditListing = () => {
                   accept="image/*"
                   onChange={handleImageChange}
                   className="h-9 text-sm"
+                  disabled={existingImages.length + files.length >= 6}
                 />
                 <p className="text-xs text-gray-500">
-                  Upload up to 6 images of your property (each under 5MB)
+                  {t.uploadUpTo}
                 </p>
                 
                 {imageUploadError && (
@@ -1129,54 +1365,293 @@ const EditListing = () => {
                     {imageUploadError}
                   </p>
                 )}
+              </div>
+
+              {/* Video Upload Input */}
+              <div className="space-y-2">
+                <Label htmlFor="video" className="text-sm font-medium text-gray-700">
+                  {t.selectVideo}
+                </Label>
+                <Input
+                  id="video"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoChange}
+                  className="h-9 text-sm"
+                  disabled={!!videoFile || !!existingVideo}
+                />
+                <p className="text-xs text-gray-500">
+                  {t.uploadVideoDesc}
+                </p>
                 
-                {files.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-green-600 font-medium">
-                      {files.length} new file(s) selected
-                    </p>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {Array.from(files).map((file, index) => (
-                        <div key={index} className="relative">
+                {videoUploadError && (
+                  <p className="text-red-600 text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {videoUploadError}
+                  </p>
+                )}
+              </div>
+
+              {/* Existing Images */}
+              {existingImages.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    {t.existingImages}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {existingImages.map((imageUrl, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-video w-full rounded-lg overflow-hidden border-2 border-gray-200">
+                          <img
+                            src={imageUrl}
+                            alt={`Existing ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        
+                        {/* Image Number Badge */}
+                        <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          {index + 1}
+                        </div>
+                        
+                        {/* Edit and Remove Buttons (appear on hover) */}
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                            onClick={() => replaceExistingImage(index)}
+                            title="Replace image"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 w-8 p-0 bg-red-500/90 hover:bg-red-500"
+                            onClick={() => removeExistingImage(index)}
+                            title="Remove image"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        
+                        {/* Image Info */}
+                        <div className="mt-1 text-center">
+                          <p className="text-xs text-gray-600 truncate">
+                            Existing Image {index + 1}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* New Images Preview */}
+              {files.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    {t.selectedImages}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {files.map((file, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-video w-full rounded-lg overflow-hidden border-2 border-gray-200">
                           <img
                             src={URL.createObjectURL(file)}
                             alt={`Preview ${index + 1}`}
-                            className="w-full h-20 object-cover rounded-md"
+                            className="w-full h-full object-cover"
                           />
-                          <span className="absolute bottom-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                            {index + 1}
-                          </span>
                         </div>
-                      ))}
+                        
+                        {/* Image Number Badge */}
+                        <div className="absolute top-2 left-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          {existingImages.length + index + 1}
+                        </div>
+                        
+                        {/* Edit and Remove Buttons (appear on hover) */}
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                            onClick={() => replaceImage(index)}
+                            title="Replace image"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 w-8 p-0 bg-red-500/90 hover:bg-red-500"
+                            onClick={() => removeImage(index)}
+                            title="Remove image"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        
+                        {/* Image Info */}
+                        <div className="mt-1 text-center">
+                          <p className="text-xs text-gray-600 truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(1)} MB
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add More Images Placeholder */}
+              {existingImages.length + files.length < 6 && (
+                <div 
+                  className="aspect-video w-full rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  onClick={() => document.getElementById('images')?.click()}
+                >
+                  <Upload className="h-6 w-6 text-gray-400 mb-1" />
+                  <p className="text-xs text-gray-600 font-medium">{t.addMore}</p>
+                  <p className="text-xs text-gray-500">{6 - (existingImages.length + files.length)} {t.remaining}</p>
+                </div>
+              )}
+
+              {/* Existing Video */}
+              {existingVideo && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <VideoIcon className="h-4 w-4" />
+                    {t.existingVideo}
+                  </h3>
+                  <div className="relative group">
+                    <div className="aspect-video w-full rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 flex items-center justify-center">
+                      <video 
+                        src={existingVideo} 
+                        className="max-h-48"
+                        controls
+                      />
+                    </div>
+                    
+                    {/* Edit and Remove Buttons (appear on hover) */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                        onClick={replaceExistingVideo}
+                        title="Replace video"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 w-8 p-0 bg-red-500/90 hover:bg-red-500"
+                        onClick={removeExistingVideo}
+                        title="Remove video"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* New Video Preview */}
+              {videoFile && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <VideoIcon className="h-4 w-4" />
+                    {t.selectedVideo}
+                  </h3>
+                  <div className="relative group">
+                    <div className="aspect-video w-full rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 flex items-center justify-center">
+                      <video 
+                        src={URL.createObjectURL(videoFile)} 
+                        className="max-h-48"
+                        controls
+                      />
+                    </div>
+                    
+                    {/* Edit and Remove Buttons (appear on hover) */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                        onClick={replaceVideo}
+                        title="Replace video"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 w-8 p-0 bg-red-500/90 hover:bg-red-500"
+                        onClick={removeVideo}
+                        title="Remove video"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    {/* Video Info */}
+                    <div className="mt-1 text-center">
+                      <p className="text-xs text-gray-600 truncate">
+                        {videoFile.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {(videoFile.size / 1024 / 1024).toFixed(1)} MB
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
-              <div className="flex gap-2">
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-3 border-t border-gray-200">
                 <Button
                   type="button"
-                  onClick={uploadImages}
-                  disabled={uploading || (files.length === 0 && imagesToDelete.length === 0)}
+                  onClick={uploadMedia}
+                  disabled={uploading || uploadingVideo || (files.length === 0 && imagesToDelete.length === 0 && !videoFile && existingVideo)}
                   className="flex-1 h-10 text-sm font-medium bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
                 >
-                  {uploading ? (
+                  {(uploading || uploadingVideo) ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Updating...
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      {uploading ? t.uploadingImages : t.uploadingVideo}
                     </div>
                   ) : (
-                    'Update Images'
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      {t.uploadMedia}
+                      {files.length > 0 && ` (${files.length} new image${files.length !== 1 ? 's' : ''})`}
+                      {imagesToDelete.length > 0 && ` (${imagesToDelete.length} delete${imagesToDelete.length !== 1 ? 's' : ''})`}
+                      {videoFile && ' + Video'}
+                    </>
                   )}
                 </Button>
                 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate(`/listing/${listingId}`)}
-                  className="h-10 text-sm"
+                  onClick={() => navigate('/properties')}
+                  className="h-10 text-sm px-4"
                 >
-                  Done
+                  {t.saveChanges}
                 </Button>
               </div>
             </CardContent>

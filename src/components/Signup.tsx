@@ -1,5 +1,4 @@
-// components/SignUpPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,9 +29,10 @@ interface FormErrors {
 
 interface SignUpPageProps {
   onLogin: (token: string, role: string, userId: string) => void;
+  currentLang: 'en' | 'mr';
 }
 
-const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
+const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin, currentLang }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -51,6 +51,84 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Translations
+  const translations = {
+    en: {
+      title: "Create Account",
+      buyer: "Buyer",
+      seller: "Seller",
+      fullName: "Full Name",
+      email: "Email",
+      phone: "Phone Number",
+      password: "Password",
+      confirmPassword: "Confirm Password",
+      namePlaceholder: "Enter your full name",
+      emailPlaceholder: "Enter your email",
+      phonePlaceholder: "Enter your 10-digit phone number",
+      passwordPlaceholder: "Enter at least 8 characters",
+      confirmPasswordPlaceholder: "Confirm your password",
+      signUp: "Sign Up",
+      creatingAccount: "Creating Account...",
+      signUpAs: "Sign Up as",
+      alreadyAccount: "Already have an account?",
+      login: "Login",
+      back: "Back",
+      success: "Success",
+      accountCreated: "Account created successfully! Please log in.",
+      validationError: "Validation Error",
+      fixErrors: "Please fix the errors in the form",
+      signupFailed: "Signup Failed",
+      failedCreate: "Failed to create account",
+      nameRequired: "Name is required",
+      emailRequired: "Email is required",
+      invalidEmail: "Please enter a valid email address",
+      phoneRequired: "Phone number is required",
+      invalidPhone: "Phone number must be exactly 10 digits",
+      passwordRequired: "Password is required",
+      passwordLength: "Password must be at least 8 characters long",
+      confirmRequired: "Please confirm your password",
+      passwordMismatch: "Passwords do not match"
+    },
+    mr: {
+      title: "खाते तयार करा",
+      buyer: "खरेदीदार",
+      seller: "विक्रेता",
+      fullName: "पूर्ण नाव",
+      email: "ईमेल",
+      phone: "फोन नंबर",
+      password: "पासवर्ड",
+      confirmPassword: "पासवर्ड निश्चित करा",
+      namePlaceholder: "तुमचे पूर्ण नाव प्रविष्ट करा",
+      emailPlaceholder: "तुमचा ईमेल प्रविष्ट करा",
+      phonePlaceholder: "तुमचा 10-अंकी फोन नंबर प्रविष्ट करा",
+      passwordPlaceholder: "किमान 8 वर्ण प्रविष्ट करा",
+      confirmPasswordPlaceholder: "तुमचा पासवर्ड निश्चित करा",
+      signUp: "साइन अप",
+      creatingAccount: "खाते तयार होत आहे...",
+      signUpAs: "याप्रमाणे साइन अप करा",
+      alreadyAccount: "आधीपासूनच खाते आहे?",
+      login: "लॉगिन",
+      back: "मागे",
+      success: "यश",
+      accountCreated: "खाते यशस्वीरित्या तयार केले! कृपया लॉगिन करा.",
+      validationError: "प्रमाणीकरण त्रुटी",
+      fixErrors: "कृपया फॉर्ममधील त्रुटी दुरुस्त करा",
+      signupFailed: "साइनअप अयशस्वी",
+      failedCreate: "खाते तयार करण्यात अयशस्वी",
+      nameRequired: "नाव आवश्यक आहे",
+      emailRequired: "ईमेल आवश्यक आहे",
+      invalidEmail: "कृपया वैध ईमेल पत्ता प्रविष्ट करा",
+      phoneRequired: "फोन नंबर आवश्यक आहे",
+      invalidPhone: "फोन नंबर नक्की 10 अंकी असणे आवश्यक आहे",
+      passwordRequired: "पासवर्ड आवश्यक आहे",
+      passwordLength: "पासवर्ड किमान 8 वर्णांचा असणे आवश्यक आहे",
+      confirmRequired: "कृपया तुमचा पासवर्ड निश्चित करा",
+      passwordMismatch: "पासवर्ड जुळत नाहीत"
+    }
+  };
+
+  const t = translations[currentLang];
+
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -68,7 +146,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -79,31 +157,31 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
     const newErrors: FormErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = t.nameRequired;
     }
 
     if (!formData.email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t.emailRequired;
     } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = t.invalidEmail;
     }
 
     if (!formData.phone) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = t.phoneRequired;
     } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = 'Phone number must be exactly 10 digits';
+      newErrors.phone = t.invalidPhone;
     }
 
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t.passwordRequired;
     } else if (!validatePassword(formData.password)) {
-      newErrors.password = 'Password must be at least 8 characters long';
+      newErrors.password = t.passwordLength;
     }
 
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = t.confirmRequired;
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t.passwordMismatch;
     }
 
     setErrors(newErrors);
@@ -112,7 +190,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -126,14 +204,14 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
         phone: formData.phone,
         password: formData.password,
         role: activeTab
-      };
+  };
 
       const response = await signupApi(userData);
       
       if (response.status === 'success') {
         toast({
-          title: "Success",
-          description: "Account created successfully! Please log in.",
+          title: t.success,
+          description: t.accountCreated,
         });
         
         // Redirect to login page without pre-filling email
@@ -150,14 +228,14 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
         setErrors(backendErrors);
         
         toast({
-          title: "Validation Error",
-          description: "Please fix the errors in the form",
+          title: t.validationError,
+          description: t.fixErrors,
           variant: "destructive"
         });
       } else {
         toast({
-          title: "Signup Failed",
-          description: error.message || "Failed to create account",
+          title: t.signupFailed,
+          description: error.message || t.failedCreate,
           variant: "destructive"
         });
       }
@@ -173,145 +251,179 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onLogin }) => {
   const toggleConfirmPasswordVisibility = () => {
     setShowConfirmPassword(!showConfirmPassword);
   };
-
+useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, []);
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 px-4 py-12">
-      <Card className="w-full max-w-md shadow-card relative">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="absolute top-4 left-4"
+    <div className="min-h-screen flex items-start justify-center bg-gray-50 px-4 pt-4 pb-8">
+      <Card className="w-full max-w-md shadow-lg relative">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-3 left-3 z-10 h-8 px-2"
           onClick={() => navigate(-1)}
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          <ArrowLeft className="h-3 w-3 mr-1" />
+          {t.back}
         </Button>
-        
-        <CardHeader className="text-center pt-12">
-          <CardTitle className="text-2xl font-heading">Create Account</CardTitle>
-          <CardDescription>
-            Sign up to get started
-          </CardDescription>
+
+        <CardHeader className="text-center pt-8 pb-3">
+          <CardTitle className="text-xl font-semibold">{t.title}</CardTitle>
         </CardHeader>
         
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="buyer" className="flex items-center space-x-2">
+        <CardContent className="px-5 pb-3">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-5">
+            <TabsList className="grid w-full grid-cols-2 h-9">
+              <TabsTrigger value="buyer" className="flex items-center space-x-2 text-sm">
                 <UserCheck className="h-4 w-4" />
-                <span>Buyer</span>
+                <span>{t.buyer}</span>
               </TabsTrigger>
-              <TabsTrigger value="seller" className="flex items-center space-x-2">
+              <TabsTrigger value="seller" className="flex items-center space-x-2 text-sm">
                 <Store className="h-4 w-4" />
-                <span>Seller</span>
+                <span>{t.seller}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={handleChange}
-                className={errors.name ? 'border-destructive' : ''}
-              />
-              {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                className={errors.email ? 'border-destructive' : ''}
-              />
-              {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="Enter your 10-digit phone number"
-                value={formData.phone}
-                onChange={handleChange}
-                className={errors.phone ? 'border-destructive' : ''}
-              />
-              {errors.phone && <p className="text-destructive text-xs mt-1">{errors.phone}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter at least 8 characters"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={togglePasswordVisibility}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+            {/* Full Name field - Label and Input on same line */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="name" className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">
+                  {t.fullName}
+                </Label>
+                <div className="flex-1">
+                  <Input
+                    id="name"
+                    name="name"
+                    type="text"
+                    placeholder={t.namePlaceholder}
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={errors.name ? 'border-red-500 h-9 text-sm' : 'h-9 text-sm'}
+                  />
+                </div>
               </div>
-              {errors.password && <p className="text-destructive text-xs mt-1">{errors.password}</p>}
+              {errors.name && <p className="text-red-500 text-xs ml-32">{errors.name}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={errors.confirmPassword ? 'border-destructive pr-10' : 'pr-10'}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={toggleConfirmPasswordVisibility}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+            {/* Email field - Label and Input on same line */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">
+                  {t.email}
+                </Label>
+                <div className="flex-1">
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder={t.emailPlaceholder}
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={errors.email ? 'border-red-500 h-9 text-sm' : 'h-9 text-sm'}
+                  />
+                </div>
               </div>
-              {errors.confirmPassword && <p className="text-destructive text-xs mt-1">{errors.confirmPassword}</p>}
+              {errors.email && <p className="text-red-500 text-xs ml-32">{errors.email}</p>}
             </div>
 
-            <Button type="submit" className="w-full mt-6" disabled={isLoading}>
-              {isLoading ? 'Creating Account...' : `Sign Up as ${activeTab === 'buyer' ? 'Buyer' : 'Seller'}`}
+            {/* Phone field - Label and Input on same line */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="phone" className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">
+                  {t.phone}
+                </Label>
+                <div className="flex-1">
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder={t.phonePlaceholder}
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className={errors.phone ? 'border-red-500 h-9 text-sm' : 'h-9 text-sm'}
+                  />
+                </div>
+              </div>
+              {errors.phone && <p className="text-red-500 text-xs ml-32">{errors.phone}</p>}
+            </div>
+
+            {/* Password field - Label and Input on same line */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">
+                  {t.password}
+                </Label>
+                <div className="flex-1 relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder={t.passwordPlaceholder}
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={errors.password ? 'border-red-500 pr-10 h-9 text-sm' : 'pr-10 h-9 text-sm'}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={togglePasswordVisibility}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              {errors.password && <p className="text-red-500 text-xs ml-32">{errors.password}</p>}
+            </div>
+
+            {/* Confirm Password field - Label and Input on same line */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">
+                  {t.confirmPassword}
+                </Label>
+                <div className="flex-1 relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder={t.confirmPasswordPlaceholder}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className={errors.confirmPassword ? 'border-red-500 pr-10 h-9 text-sm' : 'pr-10 h-9 text-sm'}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={toggleConfirmPasswordVisibility}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              {errors.confirmPassword && <p className="text-red-500 text-xs ml-32">{errors.confirmPassword}</p>}
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full mt-5 h-10 text-sm font-medium bg-blue-600 hover:bg-blue-700" 
+              disabled={isLoading}
+            >
+              {isLoading ? t.creatingAccount : `${t.signUpAs} ${activeTab === 'buyer' ? t.buyer : t.seller}`}
             </Button>
           </form>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-4">
-          <p className="text-sm text-muted-foreground text-center">
-            Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:underline font-medium">
-              Login
+        <CardFooter className="flex flex-col space-y-1 px-5 pb-4">
+          <p className="text-sm text-gray-600 text-center">
+            {t.alreadyAccount}{' '}
+            <Link to="/login" className="text-blue-600 hover:underline font-medium">
+              {t.login}
             </Link>
           </p>
         </CardFooter>

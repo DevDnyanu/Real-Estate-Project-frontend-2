@@ -1,3 +1,4 @@
+// App.tsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import Header from './components/Header';
@@ -9,8 +10,20 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
-  const [currentLang, setCurrentLang] = useState<"en" | "hi">("en"); // ✅ strict typing
+  const [currentLang, setCurrentLang] = useState<"en" | "mr">("en");
   const { toast } = useToast();
+
+  // Translation object for toast messages
+  const translations = {
+    en: {
+      logoutSuccess: "Logged out successfully",
+      logoutTitle: "Success"
+    },
+    mr: {
+      logoutSuccess: "यशस्वीरित्या लॉग आउट केले",
+      logoutTitle: "यश"
+    }
+  };
 
   const handleLogin = (token: string, role: string, userId: string): void => {
     setIsAuthenticated(true);
@@ -28,14 +41,16 @@ function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     localStorage.removeItem('userId');
+    localStorage.removeItem('selectedPackage');
+    
+    const t = translations[currentLang];
     toast({
-      title: "Success",
-      description: "Logged out successfully",
+      title: t.logoutTitle,
+      description: t.logoutSuccess,
     });
   };
 
-  // ✅ enforce type to only allow "en" or "hi"
-  const handleLanguageChange = (lang: "en" | "hi"): void => {
+  const handleLanguageChange = (lang: "en" | "mr"): void => {
     setCurrentLang(lang);
   };
 
@@ -65,7 +80,7 @@ function App() {
         <RouterComponent 
           isAuthenticated={isAuthenticated}
           userRole={userRole}
-          currentLang={currentLang} // ✅ now correctly passed
+          currentLang={currentLang}
           onLogin={handleLogin}
           onLogout={handleLogout}
         />

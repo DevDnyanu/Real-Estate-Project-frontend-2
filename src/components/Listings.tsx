@@ -4,15 +4,61 @@ import { useNavigate } from 'react-router-dom';
 import PropertyCard from '@/components/PropertyCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, MapPin } from 'lucide-react';
+import { Search, Filter, MapPin, Loader2 } from 'lucide-react';
 import { getListingsApi } from '@/lib/api';
 
-const Listings = () => {
+interface ListingsProps {
+  searchTerm: string;
+  currentLang: 'en' | 'mr';
+}
+
+const Listings = ({ searchTerm, currentLang = 'en' }: ListingsProps) => {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const isAuthenticated = !!localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole');
+
+  // Translations
+  const translations = {
+    en: {
+      loading: "Loading plots...",
+      error: "Error",
+      noPlotsFound: "No plots found",
+      noResultsFor: "No results for",
+      beFirst: "Be the first to create a plot listing!",
+      createListing: "Create Listing",
+      showing: "Showing",
+      of: "of",
+      plots: "plots",
+      for: "for",
+      agriculturePlot: "Agriculture Plot",
+      nonAgriculturePlot: "Non-Agricultural Plot",
+      mountainPlot: "Mountain Plot",
+      residentialPlot: "Residential Plot",
+      commercialPlot: "Commercial Plot"
+    },
+    mr: {
+      loading: "प्लॉट लोड होत आहेत...",
+      error: "त्रुटी",
+      noPlotsFound: "कोणतेही प्लॉट सापडले नाहीत",
+      noResultsFor: "यासाठी कोणतेही निकाल नाहीत",
+      beFirst: "प्लॉट लिस्टिंग तयार करणारे पहिले व्हा!",
+      createListing: "लिस्टिंग तयार करा",
+      showing: "दाखवत आहे",
+      of: "पैकी",
+      plots: "प्लॉट",
+      for: "साठी",
+      agriculturePlot: "शेती जमीन",
+      nonAgriculturePlot: "नॉन-एग्रीकल्चर जमीन",
+      mountainPlot: "डोंगराळ जमीन",
+      residentialPlot: "रहिवासी जमीन",
+      commercialPlot: "व्यावसायिक जमीन"
+    }
+  };
+
+  const t = translations[currentLang];
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -42,81 +88,83 @@ const Listings = () => {
   const filteredListings = listings.filter(listing =>
     listing.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     listing.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    listing.type?.toLowerCase().includes(searchTerm.toLowerCase())
+    listing.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    listing.plotType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    listing.plotSubType?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getPlotTypeLabel = (type: string) => {
+    const plotTypes: Record<string, string> = {
+      'agriculture': t.agriculturePlot,
+      'non-agriculture': t.nonAgriculturePlot,
+      'mountain': t.mountainPlot,
+      'residential': t.residentialPlot,
+      'commercial': t.commercialPlot
+    };
+    return plotTypes[type] || type;
+  };
+
+  const handleViewDetails = (listingId: string) => {
+    if (!isAuthenticated) {
+      // Redirect to signup if not authenticated
+      navigate('/signup');
+      return;
+    }
+    
+    // For buyers, check if they have selected a package
+    if (userRole === 'buyer' && !localStorage.getItem("selectedPackage")) {
+      // Redirect to package selection if no package selected
+      navigate('/packages');
+      return;
+    }
+    
+    // If authenticated and has package (or is seller), navigate to listing detail
+    navigate(`/listing/${listingId}`);
+  };
 
   if (loading) return (
     <div className="p-8 text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p>Loading properties...</p>
+      <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+      <p>{t.loading}</p>
     </div>
   );
 
   if (error) return (
     <div className="p-8 text-center text-red-500">
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
-        <h3 className="text-red-800 font-semibold mb-2">Error</h3>
+        <h3 className="text-red-800 font-semibold mb-2">{t.error}</h3>
         <p>{error}</p>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-4">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Property Listings</h1>
-          <p className="text-gray-600">Find your perfect home</p>
-        </div>
 
-        {/* Search and Filter */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search by location, property type, or keywords..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filters
-            </Button>
-          </div>
-        </div>
-
+        {/* Results */}
         {!filteredListings || filteredListings.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
             <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No properties found</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.noPlotsFound}</h3>
             <p className="text-gray-600 mb-4">
-              {searchTerm ? `No results for "${searchTerm}"` : 'Be the first to create a listing!'}
+              {searchTerm ? `${t.noResultsFor} "${searchTerm}"` : t.beFirst}
             </p>
-            {searchTerm && (
-              <Button 
-                variant="outline" 
-                onClick={() => setSearchTerm('')}
-                className="mr-2"
-              >
-                Clear Search
+            {userRole === 'seller' && (
+              <Button onClick={() => navigate('/create-listing')}>
+                {t.createListing}
               </Button>
             )}
           </div>
         ) : (
           <>
-            {/* Results count */}
-            <div className="mb-6">
+            <div className="mb-4">
               <p className="text-gray-600">
-                Showing {filteredListings.length} of {listings.length} properties
-                {searchTerm && ` for "${searchTerm}"`}
+                {t.showing} {filteredListings.length} {t.of} {listings.length} {t.plots}
+                {searchTerm && ` ${t.for} "${searchTerm}"`}
               </p>
             </div>
 
-            {/* Properties Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredListings.map((listing) => (
                 <PropertyCard
@@ -125,20 +173,24 @@ const Listings = () => {
                     id: listing._id,
                     title: listing.name,
                     location: listing.address,
-                    price: `₹${listing.regularPrice?.toLocaleString('en-IN')}`,
-                    rentPrice: listing.type === 'rent' ? `₹${listing.regularPrice}/month` : undefined,
+                    price: `₹${listing.totalPrice?.toLocaleString('en-IN')}`,
+                    rentPrice: listing.type === 'rent' ? `₹${listing.pricePerUnit}/month` : undefined,
                     type: listing.type,
-                    propertyType: listing.propertyType || 'Residential',
-                    bedrooms: listing.bedrooms,
-                    bathrooms: listing.bathrooms,
-                    area: listing.squareFootage || listing.area || '0',
-                    image: listing.images?.[0], // This will show the uploaded image
+                    propertyType: getPlotTypeLabel(listing.plotType || 'plot'),
+                    plotSize: listing.plotSize,
+                    pricePerUnit: listing.pricePerUnit,
+                    area: listing.plotSize ? `${listing.plotSize} acres` : '0 acres',
+                    image: listing.images?.[0],
                     featured: listing.offer,
                     verified: true,
+                    isPlot: true,
+                    plotType: listing.plotType,
+                    plotSubType: listing.plotSubType
                   }}
-                  onView={() => navigate(`/listing/${listing._id}`)}
-                  onContact={() => console.log('Contact seller:', listing._id)}
+                  onView={() => handleViewDetails(listing._id)}
+                  onContact={() => console.log('Contact owner:', listing._id)}
                   onFavorite={() => console.log('Add to favorites:', listing._id)}
+                  currentLang={currentLang}
                 />
               ))}
             </div>

@@ -114,31 +114,62 @@ export const verifyToken = async (token: string) => {
 };
 
 /* ---------------- LISTINGS APIS ---------------- */
-export const createListingApi = async (payload: any) => {
+export const createListingApi = async (formData: any) => {
   const res = await fetch(`${BASE}/api/listings`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
+    headers: { 
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify(formData),
   });
-  const data = await parseJson(res);
+  const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Failed to create listing");
   return data;
 };
 
 export const uploadImagesApi = async (listingId: string, files: File[]) => {
-  const formData = new FormData();
-  files.forEach((file: File) => {
-    formData.append("images", file);
-  });
+  try {
+    const formData = new FormData();
+    
+    // Append each file to the formData
+    files.forEach((file) => {
+      formData.append('images', file);
+    });
+    
+    const response = await fetch(`${BASE}/api/listings/${listingId}/upload-images`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to upload images');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error uploading images:', error);
+    throw error;
+  }
+};
 
-  const res = await fetch(`${BASE}/api/listings/${listingId}/upload-images`, {
+export const uploadVideoApi = async (listingId: string, file: File) => {
+  const formData = new FormData();
+  formData.append('videos', file);
+  
+  const res = await fetch(`${BASE}/api/listings/${listingId}/upload-videos`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: { 
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    },
     body: formData,
   });
-
-  const data = await parseJson(res);
-  if (!res.ok) throw new Error(data.message || "Image upload failed");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to upload video");
   return data;
 };
 
@@ -209,9 +240,11 @@ export const getListingsApi = async () => {
     }
 
     // Ensure all listings have proper image URLs
-    const listingsWithImages = listings.map((listing: any) => {
+    const listingsWithMedia = listings.map((listing: any) => {
       // Handle both string URLs and ObjectId references
       const images = Array.isArray(listing.images) ? listing.images : [];
+      const videos = Array.isArray(listing.videos) ? listing.videos : [];
+      
       const processedImages = images.map((img: any) => {
         if (typeof img === 'string' && img.startsWith('http')) {
           return img; // Already a URL
@@ -220,15 +253,24 @@ export const getListingsApi = async () => {
         return `${BASE}/api/listings/image/${img}`;
       });
 
+      const processedVideos = videos.map((vid: any) => {
+        if (typeof vid === 'string' && vid.startsWith('http')) {
+          return vid; // Already a URL
+        }
+        // Convert ObjectId to URL
+        return `${BASE}/api/listings/video/${vid}`;
+      });
+
       return {
         ...listing,
-        images: processedImages
+        images: processedImages,
+        videos: processedVideos
       };
     });
 
     return {
       success: true,
-      listings: listingsWithImages,
+      listings: listingsWithMedia,
     };
   } catch (error: any) {
     console.error("Error fetching listings:", error);
@@ -241,7 +283,7 @@ export const getListingsApi = async () => {
 };
 
 export const deleteImageApi = async (listingId: string, imageUrl: string) => {
-  const response = await fetch(`/api/listings/${listingId}/images`, {
+  const response = await fetch(`${BASE}/api/listings/${listingId}/images`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
@@ -293,4 +335,32 @@ export const getCurrentUserFromToken = () => {
     localStorage.removeItem('token');
     return null;
   }
+};
+
+export const createPaymentOrderApi = async (amount: number, packageType: string, userType: string = 'buyer') => {
+  const res = await fetch(`${BASE}/api/payment/order`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({ amount, packageType, userType }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to create order");
+  return data;
+};
+
+export const verifyPaymentApi = async (response: any, amount: number, packageType: string, userType: string = 'buyer') => {
+  const res = await fetch(`${BASE}/api/payment/verify`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({ ...response, amount, packageType, userType }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Payment verification failed");
+  return data;
 };

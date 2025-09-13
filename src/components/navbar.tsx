@@ -1,7 +1,7 @@
 import React from "react";
 
 type NavbarProps = {
-  currentLang: "en" | "hi";
+  currentLang: "en" | "mr";
   onLogout: () => void;
 };
 

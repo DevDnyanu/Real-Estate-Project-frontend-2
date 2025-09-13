@@ -1,39 +1,50 @@
-// components/Home.tsx
-import React from "react";
+
+import React, { useState } from "react";
 import { Hero } from "@/components/Hero";
 import { PackageSelection } from "@/components/PackageSelection";
 import { Footer } from "@/components/Footer";
-import Header from "./Header";
 import Listings from "./Listings";
-import ListingsPage from './ListingsPage';
+import ListingsPage from "./ListingsPage";
+import { useNavigate } from "react-router-dom";
 
 type HomeProps = {
-  currentLang: "en" | "hi";
+  currentLang: "en" | "mr";
   onLogout: () => void;
   userRole?: string;
   isAuthenticated: boolean;
 };
 
-const Home: React.FC<HomeProps> = ({ 
-  currentLang, 
-  onLogout, 
-  userRole = 'buyer',
-  isAuthenticated 
+const Home: React.FC<HomeProps> = ({
+  currentLang,
+  onLogout,
+  userRole = "buyer",
+  isAuthenticated,
 }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
+
   const handlePackageSelect = (packageType: string) => {
     console.log("Selected package:", packageType);
+    // Store package selection in localStorage
+    localStorage.setItem("selectedPackage", packageType);
+  };
+
+  const handleSearchSubmit = () => {
+    console.log("Search submitted:", searchTerm);
   };
 
   // Different content based on user role
   const renderContent = () => {
-    if (userRole === 'seller') {
+    if (userRole === "seller") {
       return (
         <>
-          {/* Seller को भी Hero Section दिखेगा */}
-          <Hero currentLang={currentLang} />
-          
-         
-          <ListingsPage />
+          <Hero
+            currentLang={currentLang}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onSearchSubmit={handleSearchSubmit}
+          />
+          <ListingsPage searchTerm={searchTerm} currentLang={currentLang} />
         </>
       );
     }
@@ -41,24 +52,29 @@ const Home: React.FC<HomeProps> = ({
     // Default buyer view
     return (
       <>
-        <Hero currentLang={currentLang} />
-        <Listings />
-        <PackageSelection
+        <Hero
           currentLang={currentLang}
-          onSelectPackage={handlePackageSelect}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          onSearchSubmit={handleSearchSubmit}
         />
+        <Listings 
+          searchTerm={searchTerm} 
+          currentLang={currentLang} 
+        />
+        {!isAuthenticated && (
+          <PackageSelection
+            currentLang={currentLang}
+            onSelectPackage={handlePackageSelect}
+          />
+        )}
       </>
     );
   };
 
   return (
     <div className="min-h-screen bg-background">
-      
-
-      <main>
-        {renderContent()}
-      </main>
-
+      <main>{renderContent()}</main>
       <Footer currentLang={currentLang} />
     </div>
   );
