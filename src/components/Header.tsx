@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Globe, Search, Building2, Menu, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ProfileMenu from '@/components/Profile.tsx'; 
-import logo from '@/assets/logo.jpg';
+import logo from '@/assets/Logo.jpg';
 
 interface HeaderProps {
   currentLang: string;
