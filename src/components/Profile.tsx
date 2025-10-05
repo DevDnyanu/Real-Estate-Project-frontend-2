@@ -27,7 +27,7 @@ interface UserData {
   image?: string;
 }
 
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "https://real-estate-project-backend-2-2.onrender.com";
 
 const Profile: React.FC<ProfileProps> = ({ 
   userRole, 
