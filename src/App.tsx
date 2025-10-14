@@ -236,7 +236,7 @@ const AppContent = () => {
     navigate(redirectPath);
   };
 
-  // ✅ FIXED: Role Switch Function with proper navigation
+  // ✅ FIXED: Role Switch Function - Package persists across roles
   const handleRoleSwitch = async (newRole: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -252,16 +252,15 @@ const AppContent = () => {
       console.log('🔄 Switching role from', appState.userRole, 'to', newRole);
 
       // ✅ IMMEDIATELY update state and localStorage
-      updateAppState({ 
-        userRole: newRole,
-        userPackage: null // Clear package when switching roles
+      updateAppState({
+        userRole: newRole
+        // ✅ REMOVED: No longer clear package - it persists across roles
       });
       localStorage.setItem('role', newRole);
 
-      // ✅ Clear old package data
-      clearPackageFromLocalStorage();
+      // ✅ REMOVED: No longer clear package data - packages work across all roles
 
-      // ✅ Load package for new role
+      // ✅ Reload package for new role (will find same package)
       await loadUserPackage(appState.userId, newRole);
 
       const t = translations[appState.currentLang];
@@ -276,11 +275,6 @@ const AppContent = () => {
       const redirectPath = newRole === 'seller' ? '/listings' : '/';
       console.log('📍 Role switch redirect to:', redirectPath);
       navigate(redirectPath);
-
-      // ✅ Force reload to ensure all components update with new role
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
 
     } catch (error) {
       console.error('❌ Role switch error:', error);

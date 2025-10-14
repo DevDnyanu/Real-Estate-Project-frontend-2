@@ -252,31 +252,30 @@ export const PackageSelection = ({
     }
   };
 
-  // ✅ IMPROVED: Enhanced package validation
+  // ✅ FIXED: Package validation without userType check (packages work across all roles)
   const hasValidPackage = () => {
     if (!userPackage) {
       console.log('❌ No user package found');
       return false;
     }
-    
+
     const now = new Date();
     const expiryDate = new Date(userPackage.expiryDate);
     const isNotExpired = now <= expiryDate;
     const hasRemainingListings = userPackage.propertiesUsed < userPackage.propertyLimit;
-    const isUserTypeMatch = userPackage.userType === userType;
-    
-    const isValid = userPackage.isActive && isNotExpired && hasRemainingListings && isUserTypeMatch;
-    
+
+    const isValid = userPackage.isActive && isNotExpired && hasRemainingListings;
+
     console.log('🔍 Package validation check:', {
       isActive: userPackage.isActive,
       isNotExpired,
       hasRemainingListings,
-      isUserTypeMatch,
-      userPackageUserType: userPackage.userType,
+      packageUserType: userPackage.userType,
       currentUserType: userType,
+      note: 'Package works across all roles',
       isValid
     });
-    
+
     return isValid;
   };
 

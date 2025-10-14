@@ -1,20 +1,11 @@
-// ✅ FIXED: Dynamic BASE URL for production/development
-const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+const BASE = "http://localhost:5000";
+// const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
-  
-
-// ✅ ADD: HTTPS URL converter to fix mixed content errors
-export const ensureHttps = (url: string): string => {
-  if (!url) return '';
-  if (url.startsWith('http://')) {
-    console.log('🔄 Converting to HTTPS:', url);
-    return url.replace('http://', 'https://');
-  }
-  return url;
-};
+// Export BASE_URL for use in other components
+export const BASE_URL = BASE;
 
 // Attach Authorization header if token is present
-const authHeaders = () => {
+export const authHeaders = () => {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
@@ -115,21 +106,23 @@ export const updateProfileApi = async (profileData: {
   }
 };
 
-// Upload profile image - BASE64 version (your backend expects base64)
-export const uploadProfileImageApi = async (imageBase64: string) => {
+// Upload profile image
+export const uploadProfileImageApi = async (file: File) => {
   try {
     const token = localStorage.getItem("token");
     if (!token) {
       throw new Error("No authentication token found");
     }
 
+    const formData = new FormData();
+    formData.append("profileImage", file);
+
     const response = await fetch(`${BASE}/api/auth/profile/upload-image`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      body: JSON.stringify({ imageBase64 })
+      body: formData
     });
 
     const data = await parseJson(response);
@@ -430,11 +423,16 @@ export const deleteListingApi = async (id: string) => {
   return data;
 };
 
-// ✅ FIXED: getListingsApi with HTTPS URLs
 export const getListingsApi = async () => {
   try {
+    // Get current role from localStorage
+    const currentRole = localStorage.getItem('role') || 'buyer';
+
     const res = await fetch(`${BASE}/api/listings`, {
-      headers: authHeaders()
+      headers: {
+        ...authHeaders(),
+        'x-current-role': currentRole // Add current role header
+      }
     });
     const data = await parseJson(res);
 
@@ -452,27 +450,26 @@ export const getListingsApi = async () => {
       listings = data.data;
     }
 
-    // ✅ FIXED: Ensure all listings have HTTPS image URLs
+    // Ensure all listings have proper image URLs
     const listingsWithMedia = listings.map((listing: any) => {
+      // Handle both string URLs and ObjectId references
       const images = Array.isArray(listing.images) ? listing.images : [];
       const videos = Array.isArray(listing.videos) ? listing.videos : [];
       
       const processedImages = images.map((img: any) => {
-        if (typeof img === 'string') {
-          // ✅ FIX: Force HTTPS URLs
-          return ensureHttps(img);
+        if (typeof img === 'string' && img.startsWith('http')) {
+          return img; // Already a URL
         }
-        // Convert ObjectId to HTTPS URL
-        return ensureHttps(`${BASE}/api/listings/image/${img}`);
+        // Convert ObjectId to URL
+        return `${BASE}/api/listings/image/${img}`;
       });
 
       const processedVideos = videos.map((vid: any) => {
-        if (typeof vid === 'string') {
-          // ✅ FIX: Force HTTPS URLs
-          return ensureHttps(vid);
+        if (typeof vid === 'string' && vid.startsWith('http')) {
+          return vid; // Already a URL
         }
-        // Convert ObjectId to HTTPS URL
-        return ensureHttps(`${BASE}/api/listings/video/${vid}`);
+        // Convert ObjectId to URL
+        return `${BASE}/api/listings/video/${vid}`;
       });
 
       return {
@@ -550,8 +547,6 @@ export const getCurrentUserFromToken = () => {
     return null;
   }
 };
-
-
 
 /* ---------------- PACKAGE & PAYMENT APIS ---------------- */
 export interface UserPackage {

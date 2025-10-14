@@ -27,7 +27,8 @@ interface UserData {
   image?: string;
 }
 
-const BASE_URL = "https://real-estate-project-backend-2-2.onrender.com";
+// Import BASE URL and authHeaders from api.tsx to ensure consistency
+import { BASE_URL, authHeaders } from '@/lib/api';
 
 const Profile: React.FC<ProfileProps> = ({ 
   userRole, 
@@ -121,17 +122,11 @@ const Profile: React.FC<ProfileProps> = ({
   const fetchUserData = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        console.error('No token found');
-        return;
-      }
 
       console.log('🔄 Profile: Fetching profile data...');
       const response = await fetch(`${BASE_URL}/api/auth/profile`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          ...authHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -238,12 +233,10 @@ const Profile: React.FC<ProfileProps> = ({
           const imageBase64 = event.target?.result as string;
           console.log('Base64 image data length:', imageBase64.length);
 
-          const token = localStorage.getItem('token');
-          
           const response = await fetch(`${BASE_URL}/api/auth/profile/upload-image`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
+              ...authHeaders(),
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -316,11 +309,10 @@ const Profile: React.FC<ProfileProps> = ({
 
   const handleRemoveImage = async () => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${BASE_URL}/api/auth/profile/remove-image`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          ...authHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -360,8 +352,8 @@ const Profile: React.FC<ProfileProps> = ({
     if (!hasChanges) {
       toast({
         title: currentLang === 'en' ? "No changes to save" : "जतन करण्यासाठी कोणतेही बदल नाहीत",
-        description: currentLang === 'en' 
-          ? "Make some changes before saving" 
+        description: currentLang === 'en'
+          ? "Make some changes before saving"
           : "जतन करण्यापूर्वी काही बदल करा",
         variant: "default"
       });
@@ -370,12 +362,11 @@ const Profile: React.FC<ProfileProps> = ({
 
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${BASE_URL}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...authHeaders()
         },
         body: JSON.stringify({
           name: userData.name,

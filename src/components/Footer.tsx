@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Phone, Mail, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
 import Logo from '@/assets/Logo.jpg'; // ✅ import your logo image
+import { useNavigate } from 'react-router-dom';
 
 interface FooterProps {
   currentLang: 'en' | 'mr';
@@ -13,19 +13,16 @@ const translations = {
     brand: 'PlotChamps',
     tagline: 'Your trusted partner in real estate',
     quickLinks: 'Quick Links',
-    buy: 'Buy Plot',
-    sell: 'Sell Plot',
+    home: 'Home',
     about: 'About Us',
     contact: 'Contact Us',
+    packages: 'Packages',
     privacy: 'Privacy Policy',
     terms: 'Terms & Conditions',
     contactInfo: 'Contact Information',
-    address: 'Hinjewadi, Pune, Maharashtra 411057',
+    address: '123 Business Park, Mumbai, Maharashtra 400001',
     phone: '+91 7499696162',
     email: 'info@plotchamps.com',
-    newsletter: 'Newsletter',
-    newsletterText: 'Subscribe to get latest property updates',
-    subscribe: 'Subscribe',
     followUs: 'Follow Us',
     copyright: '© 2025 PlotChamps. All rights reserved.',
     sellerPackages: 'Seller Packages',
@@ -34,25 +31,22 @@ const translations = {
     premium: 'Premium Package',
     support: 'Support',
     faq: 'FAQ',
-    helpCenter: 'Help Center'
+    freePackage: 'Free Package'
   },
   mr: {
     brand: 'प्लॉटचॅम्प्स',
     tagline: 'रिअल इस्टेट मध्ये तुमचा विश्वासू भागीदार',
     quickLinks: 'द्रुत दुवे',
-    buy: 'प्लॉट खरेदी करा',
-    sell: 'प्लॉट विक्री करा',
+    home: 'होम',
     about: 'आमच्याबद्दल',
     contact: 'संपर्क साधा',
+    packages: 'पॅकेजेस',
     privacy: 'गोपनीयता धोरण',
     terms: 'अटी आणि नियम',
     contactInfo: 'संपर्क माहिती',
-    address: 'हिंजवडी, पुणे, महाराष्ट्र ४११०५७',
+    address: '१२३ बिझनेस पार्क, मुंबई, महाराष्ट्र ४००००१',
     phone: '+९१ ७४९९६९६१६२',
     email: 'info@plotchamps.com',
-    newsletter: 'बातमीपत्र',
-    newsletterText: 'नवीनतम मालमत्ता अपडेट्स मिळवण्यासाठी सदस्यता घ्या',
-    subscribe: 'सदस्यता घ्या',
     followUs: 'आमचे अनुसरण करा',
     copyright: '© २०२५ प्लॉटचॅम्प्स. सर्व हक्क राखीव.',
     sellerPackages: 'विक्रेता पॅकेजेस',
@@ -61,12 +55,13 @@ const translations = {
     premium: 'प्रीमियम पॅकेज',
     support: 'आधार',
     faq: 'सामान्य प्रश्न',
-    helpCenter: 'मदत केंद्र'
+    freePackage: 'मोफत पॅकेज'
   }
 };
 
 export const Footer = ({ currentLang }: FooterProps) => {
   const t = translations[currentLang];
+  const navigate = useNavigate();
 
   const handleSocialClick = (platform: string) => {
     const urls = {
@@ -76,6 +71,18 @@ export const Footer = ({ currentLang }: FooterProps) => {
       linkedin: 'https://www.linkedin.com/company/plotchamps'
     };
     window.open(urls[platform as keyof typeof urls], '_blank');
+  };
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
+  const handlePackageClick = (packageType: string) => {
+    navigate('/packages', { 
+      state: { 
+        selectedPackage: packageType 
+      } 
+    });
   };
 
   return (
@@ -117,10 +124,42 @@ export const Footer = ({ currentLang }: FooterProps) => {
           <div className="space-y-4">
             <h4 className="font-semibold text-lg">{t.quickLinks}</h4>
             <ul className="space-y-2">
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-primary-light justify-start">{t.buy}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-primary-light justify-start">{t.sell}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-primary-light justify-start">{t.about}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-primary-light justify-start">{t.contact}</Button></li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-primary-light justify-start"
+                  onClick={() => handleNavigation('/')}
+                >
+                  {t.home}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-primary-light justify-start"
+                  onClick={() => handleNavigation('/about')}
+                >
+                  {t.about}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-primary-light justify-start"
+                  onClick={() => handleNavigation('/contact')}
+                >
+                  {t.contact}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-primary-light justify-start"
+                  onClick={() => handleNavigation('/packages')}
+                >
+                  {t.packages}
+                </Button>
+              </li>
             </ul>
           </div>
 
@@ -128,15 +167,64 @@ export const Footer = ({ currentLang }: FooterProps) => {
           <div className="space-y-4">
             <h4 className="font-semibold text-lg">{t.sellerPackages}</h4>
             <ul className="space-y-2">
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-silver-light justify-start">{t.silver}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-gold-light justify-start">{t.gold}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-premium-light justify-start">{t.premium}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-primary-light justify-start">{t.support}</Button></li>
-              <li><Button variant="link" className="p-0 h-auto text-background/80 hover:text-primary-light justify-start">{t.faq}</Button></li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-silver-light justify-start"
+                  onClick={() => handlePackageClick('free')}
+                >
+                  {t.freePackage}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-silver-light justify-start"
+                  onClick={() => handlePackageClick('silver')}
+                >
+                  {t.silver}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-gold-light justify-start"
+                  onClick={() => handlePackageClick('gold')}
+                >
+                  {t.gold}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-premium-light justify-start"
+                  onClick={() => handlePackageClick('premium')}
+                >
+                  {t.premium}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-primary-light justify-start"
+                  onClick={() => handleNavigation('/support')}
+                >
+                  {t.support}
+                </Button>
+              </li>
+              <li>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-background/80 hover:text-primary-light justify-start"
+                  onClick={() => handleNavigation('/faq')}
+                >
+                  {t.faq}
+                </Button>
+              </li>
             </ul>
           </div>
 
-          {/* Contact & Newsletter */}
+          {/* Contact Information */}
           <div className="space-y-4">
             <h4 className="font-semibold text-lg">{t.contactInfo}</h4>
             <div className="space-y-3 text-sm">
@@ -151,21 +239,6 @@ export const Footer = ({ currentLang }: FooterProps) => {
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4 text-primary-light" />
                 <span className="text-background/80">{t.email}</span>
-              </div>
-            </div>
-
-            {/* Newsletter */}
-            <div className="space-y-3">
-              <h4 className="font-semibold">{t.newsletter}</h4>
-              <p className="text-sm text-background/80">{t.newsletterText}</p>
-              <div className="flex space-x-2">
-                <Input 
-                  placeholder={currentLang === 'en' ? "Enter email" : "ईमेल प्रविष्ट करा"} 
-                  className="bg-background/10 border-background/20 text-background placeholder:text-background/60"
-                />
-                <Button className="bg-gradient-hero text-primary-foreground hover:opacity-90 px-4">
-                  {t.subscribe}
-                </Button>
               </div>
             </div>
           </div>

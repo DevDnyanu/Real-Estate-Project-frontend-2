@@ -1476,9 +1476,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  MapPin, 
-  FileText, 
+import {
+  MapPin,
+  FileText,
   Upload,
   Ruler,
   X,
@@ -1491,7 +1491,8 @@ import {
   Package
 } from 'lucide-react';
 import { createListingApi, uploadImagesApi, uploadVideoApi } from '@/lib/api';
-import { canPerformAction, incrementPropertyCount, getRemainingProperties, hasValidPackage } from '@/lib/packageUtils';
+import { incrementPropertyCount, getRemainingProperties, validatePackage } from '@/lib/packageUtils';
+import PackageExpiryPopup from './PackageExpiryPopup';
 
 // Define the form data interface for TypeScript
 interface FormData {
@@ -1556,27 +1557,39 @@ const CreateListing = ({ currentLang = 'en', onLanguageChange, userId }: CreateL
   const [listingId, setListingId] = useState<string | null>(null);
   const [textDataSubmitted, setTextDataSubmitted] = useState(false);
   const [remainingListings, setRemainingListings] = useState(getRemainingProperties());
+  const [showPackagePopup, setShowPackagePopup] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  // Check package status on component mount
+  // ✅ Enhanced package validation for sellers
   useEffect(() => {
-    if (!hasValidPackage()) {
+    const userRole = localStorage.getItem('role') || '';
+    const validation = validatePackage(userRole);
+
+    console.log('🔍 CreateListing - Package validation:', validation);
+
+    // If package is expired or limit reached, redirect to packages page
+    if (!validation.isValid) {
+      console.log('⚠️ Package invalid, redirecting to packages page');
+      toast({
+        title: "Package Required",
+        description: validation.reason === 'expired'
+          ? "Your package has expired. Please purchase a new package to create listings."
+          : "You've reached your listing limit. Please upgrade your package.",
+        variant: "destructive"
+      });
       navigate('/packages');
       return;
     }
-    
-    setRemainingListings(getRemainingProperties());
-    
-    if (!canPerformAction('create')) {
-      toast({
-        title: "Listing Limit Reached",
-        description: "You've reached your listing limit. Please upgrade your package to list more properties.",
-        variant: "destructive"
-      });
+
+    // Show popup for warnings
+    if (validation.warnings.nearExpiry || validation.warnings.limitNearReached) {
+      setShowPackagePopup(true);
     }
+
+    setRemainingListings(validation.remaining);
   }, [navigate, toast]);
 
   // Enhanced translations
@@ -2344,11 +2357,23 @@ const CreateListing = ({ currentLang = 'en', onLanguageChange, userId }: CreateL
   };
 
   // Check if user can create listings
-  const canCreate = canPerformAction('create');
+  const userRole = localStorage.getItem('role') || '';
+  const validation = validatePackage(userRole);
+  const canCreate = validation.isValid && validation.remaining > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-3">
-      <div className="max-w-7xl mx-auto">
+    <>
+      {/* ✅ Package Expiry Popup */}
+      {showPackagePopup && (
+        <PackageExpiryPopup
+          currentLang={currentLang}
+          onClose={() => setShowPackagePopup(false)}
+          userType={userRole}
+        />
+      )}
+
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-3">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-4">
           <p className="text-sm text-gray-600">{t.header}</p>
@@ -2973,6 +2998,7 @@ const CreateListing = ({ currentLang = 'en', onLanguageChange, userId }: CreateL
         )}
       </div>
     </div>
+    </>
   );
 };
 

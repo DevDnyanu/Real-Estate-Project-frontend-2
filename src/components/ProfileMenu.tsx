@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ShoppingCart, Store, Menu, X } from "lucide-react";
+import { BASE_URL } from "@/lib/api";
 
 interface ProfileMenuProps {
   userName?: string;
@@ -133,7 +134,7 @@ const ProfileMenu = ({
     
     // If it's a relative path, construct URL
     if (imagePath.startsWith('/uploads')) {
-      const fullUrl = `http://localhost:5000${imagePath}`;
+      const fullUrl = `${BASE_URL}${imagePath}`;
       console.log("✅ ProfileMenu: Constructed URL:", fullUrl);
       return fullUrl;
     }

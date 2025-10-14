@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { 
-  MapPin, 
+import {
+  MapPin,
   Ruler,
   Edit,
   ArrowLeft,
@@ -19,6 +19,8 @@ import {
   Languages
 } from "lucide-react";
 import { getListingApi } from "@/lib/api";
+import PackageExpiryPopup from "./PackageExpiryPopup";
+import { validatePackage } from "@/lib/packageUtils";
 
 // Define media type
 interface MediaItem {
@@ -41,20 +43,36 @@ const ListingDetailsPage = ({ currentLang, onLanguageChange }: ListingDetailsPag
   const [mediaErrors, setMediaErrors] = useState<Set<number>>(new Set());
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const navigate = useNavigate();
-  const userRole = localStorage.getItem('userRole');
+  const userRole = localStorage.getItem('role') || '';
   const isAuthenticated = !!localStorage.getItem('token');
+  const [showPackagePopup, setShowPackagePopup] = useState(false);
 
-  // Check if user is authenticated and has selected a package (if buyer)
+  // ✅ Enhanced package validation for buyers
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/signup');
       return;
     }
-    
-    if (userRole === 'buyer' && !localStorage.getItem("selectedPackage")) {
-      navigate('/packages');
+
+    // Only buyers need package validation for viewing listings
+    if (userRole === 'buyer') {
+      const validation = validatePackage(userRole);
+
+      console.log('🔍 ListingDetailsPage - Package validation:', validation);
+
+      // If package is expired or limit reached, redirect to packages page
+      if (!validation.isValid) {
+        console.log('⚠️ Package invalid, redirecting to packages page');
+        navigate('/packages');
+        return;
+      }
+
+      // Show popup for warnings
+      if (validation.warnings.nearExpiry || validation.warnings.limitNearReached) {
+        setShowPackagePopup(true);
+      }
     }
-  }, [userRole, navigate, id, isAuthenticated]);
+  }, [userRole, navigate, isAuthenticated]);
 
   // Translation dictionary
   const translations = {
@@ -326,8 +344,18 @@ const ListingDetailsPage = ({ currentLang, onLanguageChange }: ListingDetailsPag
   const currentMedia = mediaItems[currentMediaIndex];
 
   return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
+    <>
+      {/* ✅ Package Expiry Popup */}
+      {showPackagePopup && (
+        <PackageExpiryPopup
+          currentLang={currentLang}
+          onClose={() => setShowPackagePopup(false)}
+          userType={userRole}
+        />
+      )}
+
+      <main className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4">
         {/* Header with back button and language toggle */}
         <div className="flex items-center justify-between mb-6">
           <Button 
@@ -724,6 +752,7 @@ const ListingDetailsPage = ({ currentLang, onLanguageChange }: ListingDetailsPag
         </div>
       </div>
     </main>
+    </>
   );
 };
 

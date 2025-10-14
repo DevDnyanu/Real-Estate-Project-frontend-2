@@ -12,7 +12,7 @@ import Profile from './Profile';
 import About from './About';
 import Contact from './Contact';
 import { PackageSelection } from '@/components/PackageSelection';
-import { hasValidPackage, canPerformAction } from '@/lib/packageUtils';
+import { validatePackage } from '@/lib/packageUtils';
 import ForgotPassword from './ForgotPassword';
 import VerifyOTP from './VerifyOTP';
 import ResetPassword from './ResetPassword';
@@ -54,13 +54,20 @@ const Router: React.FC<RouterProps> = ({
     navigate(redirectPath);
   };
 
+  /**
+   * ✅ Enhanced package validation for role-specific checks
+   */
   const hasValidPackageForRole = () => {
-    if (userRole === 'buyer') {
-      return hasValidPackage() && canPerformAction('view');
-    } else if (userRole === 'seller') {
-      return hasValidPackage() && canPerformAction('create');
-    }
-    return false;
+    const validation = validatePackage(userRole);
+
+    console.log('🔍 Route guard - Package validation:', {
+      userRole,
+      isValid: validation.isValid,
+      warnings: validation.warnings,
+      reason: validation.reason
+    });
+
+    return validation.isValid;
   };
 
   return (

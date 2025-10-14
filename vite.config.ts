@@ -10,11 +10,11 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist', // default build folder
+    outDir: 'dist',
     sourcemap: false,
   },
   server: {
-    port: 5173,
+    port: 8080, // Yeh line port 8080 set karegi
     strictPort: true,
   }
 });
