@@ -6,15 +6,16 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+      '@': path.resolve(__dirname, 'src'),
+    },
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
   },
   server: {
-    port: 8080, // Yeh line port 8080 set karegi
+    port: 8080,
     strictPort: true,
-  }
+  },
+  base: '/'
 });

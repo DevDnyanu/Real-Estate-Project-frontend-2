@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import RouterComponent from './components/Router';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from "@/components/ui/toaster";
 import { useToast } from '@/hooks/use-toast';
 import { getUserPackageApi } from '@/lib/api';
 
@@ -485,8 +485,8 @@ const AppContent = () => {
         userName={appState.userName}
         userImage={appState.userImage}
       />
-
-      <Toaster />
+<Toaster />
+      
     </div>
   );
 };
