@@ -1,4 +1,5 @@
-//  const BASE = "http://localhost:5000";
+//  const BASE = "https://localhost:5000";
+ 
 const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 // Enhanced authHeaders function with role support

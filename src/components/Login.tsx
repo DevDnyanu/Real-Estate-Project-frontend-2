@@ -142,55 +142,55 @@ const Login: React.FC<LoginProps> = ({ onLogin, currentLang }) => {
   };
 
   const handleSubmit = async (e: React.FormEvent, role: UserRole) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setIsLoading(true);
-    try {
-      console.log('🔄 Login attempt:', { 
-        email: formData.email, 
-        role: role 
-      });
+  setIsLoading(true);
+  try {
+    console.log('🔄 Login attempt:', { 
+      email: formData.email, 
+      role: role 
+    });
+    
+    const res = await loginApi(formData.email, formData.password, role);
+    console.log("✅ Login API Response:", res);
+    
+    if (res.status === 'success') {
+      console.log('🎉 Login successful, user data:', res.data.user);
       
-      const res = await loginApi(formData.email, formData.password, role);
-      console.log("✅ Login API Response:", res);
+      // ✅ Call onLogin - App.tsx will handle navigation
+      onLogin(
+        res.token!, 
+        res.data.user.role, 
+        res.data.user.id,
+        res.data.user.name,
+        res.data.user.image || '' 
+      );
       
-      if (res.status === 'success') {
-        console.log('🎉 Login successful, user data:', res.data.user);
-        
-        // ✅ REAL-WORLD: Pass only token to onLogin, App.js will handle data loading
-        await onLogin(
-          res.token!, 
-          res.data.user.role, 
-          res.data.user.id,
-          res.data.user.name,
-          res.data.user.image || '' 
-        );
-        
-        // Navigation will happen after state update in App.js
-        const redirectPath = res.data.user.role === "seller" ? "/seller-dashboard" : "/";
-        console.log('📍 Redirecting to:', redirectPath);
-        navigate(redirectPath);
-      }
-    } catch (err: any) {
-      console.error("❌ Login error:", err);
-      
-      let errorMessage = t.invalidCredentials;
-      if (err.message.includes('role')) {
-        errorMessage = err.message;
-      } else if (err.message.includes('Network') || err.message.includes('fetch')) {
-        errorMessage = t.networkError;
-      }
-      
-      toast({
-        title: t.loginFailed,
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      // ❌ REMOVE THESE LINES - App.tsx handleLogin already navigates
+      // const redirectPath = res.data.user.role === "seller" ? "/seller-dashboard" : "/";
+      // console.log('📍 Redirecting to:', redirectPath);
+      // navigate(redirectPath);
     }
-  };
+  } catch (err: any) {
+    console.error("❌ Login error:", err);
+    
+    let errorMessage = t.invalidCredentials;
+    if (err.message.includes('role')) {
+      errorMessage = err.message;
+    } else if (err.message.includes('Network') || err.message.includes('fetch')) {
+      errorMessage = t.networkError;
+    }
+    
+    toast({
+      title: t.loginFailed,
+      description: errorMessage,
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 px-4 py-6">

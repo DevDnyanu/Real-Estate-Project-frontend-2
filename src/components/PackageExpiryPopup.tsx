@@ -18,7 +18,7 @@ const PackageExpiryPopup = ({ currentLang, onClose, userType }: PackageExpiryPop
   const translations = {
     en: {
       expired: "Package Expired",
-      expiredMessage: "Your package has expired. Please upgrade to continue.",
+      expiredMessage: "Your package has expired. Please upgrade  continue.",
       limitReached: "Limit Reached",
       limitReachedMessage: "You've reached your property limit. Upgrade to add more properties.",
       nearExpiry: "Package Expiring Soon",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Globe, Menu, X, Phone, Info, User } from "lucide-react";
@@ -79,6 +79,14 @@ const Header = ({
   const t = translations[currentLang]; 
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Sync role with localStorage on component mount
+  useEffect(() => {
+    const currentRole = localStorage.getItem('currentRole') || userRole;
+    if (currentRole !== userRole) {
+      console.log('🔄 Header: Syncing role from localStorage:', currentRole);
+    }
+  }, [userRole]);
+
   const handleHomeClick = () => {
     navigate("/");
     setMenuOpen(false);
@@ -91,6 +99,10 @@ const Header = ({
 
   const handleRoleSwitch = (newRole: string) => {
     if (onRoleSwitch) {
+      // Store the current role in localStorage for API calls
+      localStorage.setItem('currentRole', newRole);
+      console.log('💾 Header: Stored currentRole in localStorage:', newRole);
+      
       onRoleSwitch(newRole);
       setMenuOpen(false);
       
@@ -172,11 +184,11 @@ const Header = ({
           {/* Language Selector - Zero spacing */}
           <Select value={currentLang} onValueChange={handleLanguageChangeSafe}>
             <SelectTrigger 
-              className="border border-gray-300 bg-white hover:bg-gray-50 transition-colors text-xs font-medium h-8 px-2 w-28 gap-0" // gap-0 for zero spacing
+              className="border border-gray-300 bg-white hover:bg-gray-50 transition-colors text-xs font-medium h-8 px-2 w-28 gap-0"
             >
               <Globe className="h-3 w-3 text-gray-600" />
               <SelectValue>
-                <span className="text-gray-700 font-medium text-xs truncate pl-1"> {/* pl-1 for minimal space */}
+                <span className="text-gray-700 font-medium text-xs truncate pl-1">
                   {getCurrentLanguageName()}
                 </span>
               </SelectValue>
@@ -301,10 +313,10 @@ const Header = ({
                 {t.selectLanguage}
               </label>
               <Select value={currentLang} onValueChange={handleLanguageChangeSafe}>
-                <SelectTrigger className="w-full text-xs h-8 font-medium gap-0"> {/* gap-0 for zero spacing */}
+                <SelectTrigger className="w-full text-xs h-8 font-medium gap-0">
                   <Globe className="h-3 w-3" />
                   <SelectValue>
-                    <span className="text-xs font-medium pl-1">{getCurrentLanguageName()}</span> {/* pl-1 for minimal space */}
+                    <span className="text-xs font-medium pl-1">{getCurrentLanguageName()}</span>
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

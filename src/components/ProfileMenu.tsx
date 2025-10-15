@@ -2,7 +2,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ShoppingCart, Store, Menu, X } from "lucide-react";
- const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+// const BASE = "https://localhost:5000";
+const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 interface ProfileMenuProps {
   userName?: string;

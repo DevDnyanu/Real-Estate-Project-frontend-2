@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Phone, Mail, MapPin, Clock, Send, Loader2, CheckCircle, Building2, Globe } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+// const BASE = "https://localhost:5000";
 const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 interface ContactProps {
   currentLang: 'en' | 'mr';

@@ -33,7 +33,7 @@ interface AppState {
 
 // ✅ Navigation Wrapper Component
 const AppContent = () => {
-  const navigate = useNavigate(); // ✅ useNavigate hook
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [appState, setAppState] = useState<AppState>({
@@ -47,6 +47,8 @@ const AppContent = () => {
     originalRole: ''
   });
 
+  const [isAppInitialized, setIsAppInitialized] = useState(false);
+
   const translations = {
     en: {
       logoutSuccess: "Logged out successfully",
@@ -57,7 +59,9 @@ const AppContent = () => {
       roleSwitched: "Role switched successfully",
       roleSwitchTitle: "Role Changed",
       switchToBuyer: "Switched to Buyer mode",
-      switchToSeller: "Switched to Seller mode"
+      switchToSeller: "Switched to Seller mode",
+      appReady: "App is ready",
+      loading: "Loading..."
     },
     mr: {
       logoutSuccess: "यशस्वीरित्या लॉग आउट केले",
@@ -68,7 +72,9 @@ const AppContent = () => {
       roleSwitched: "भूमिका यशस्वीरित्या बदलली",
       roleSwitchTitle: "भूमिका बदलली",
       switchToBuyer: "खरेदीदार मोडमध्ये बदलले",
-      switchToSeller: "विक्रेता मोडमध्ये बदलले"
+      switchToSeller: "विक्रेता मोडमध्ये बदलले",
+      appReady: "अॅप तयार आहे",
+      loading: "लोड होत आहे..."
     }
   };
 
@@ -99,6 +105,7 @@ const AppContent = () => {
     localStorage.removeItem('userName');
     localStorage.removeItem('userImage');
     localStorage.removeItem('originalRole');
+    localStorage.removeItem('currentRole'); // Clear current role too
     clearPackageFromLocalStorage();
     
     const t = translations[appState.currentLang];
@@ -107,11 +114,11 @@ const AppContent = () => {
       description: t.logoutSuccess,
     });
 
-    // ✅ CRITICAL: Redirect to home page using navigate
+    // CRITICAL: Redirect to home page using navigate
     console.log('🏠 App: Redirecting to home page...');
     navigate('/');
     
-    // ✅ Force reload to ensure clean state
+    // Force reload to ensure clean state
     setTimeout(() => {
       window.location.reload();
     }, 100);
@@ -199,6 +206,9 @@ const AppContent = () => {
     
     const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
     
+    // ✅ CRITICAL: Initialize currentRole on login
+    localStorage.setItem('currentRole', role);
+    
     const newState: Partial<AppState> = {
       isAuthenticated: true,
       userRole: role,
@@ -236,7 +246,7 @@ const AppContent = () => {
     navigate(redirectPath);
   };
 
-  // ✅ FIXED: Role Switch Function - Package persists across roles
+  // ✅ FIXED: Role Switch Function with proper navigation
   const handleRoleSwitch = async (newRole: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -251,16 +261,20 @@ const AppContent = () => {
 
       console.log('🔄 Switching role from', appState.userRole, 'to', newRole);
 
-      // ✅ IMMEDIATELY update state and localStorage
-      updateAppState({
-        userRole: newRole
-        // ✅ REMOVED: No longer clear package - it persists across roles
+      // ✅ CRITICAL: Update both state AND localStorage immediately
+      updateAppState({ 
+        userRole: newRole,
+        userPackage: null // Clear package when switching roles
       });
+      
+      // ✅ Store in localStorage for API calls - THIS IS CRITICAL
+      localStorage.setItem('currentRole', newRole);
       localStorage.setItem('role', newRole);
 
-      // ✅ REMOVED: No longer clear package data - packages work across all roles
+      // ✅ Clear old package data
+      clearPackageFromLocalStorage();
 
-      // ✅ Reload package for new role (will find same package)
+      // ✅ Load package for new role
       await loadUserPackage(appState.userId, newRole);
 
       const t = translations[appState.currentLang];
@@ -271,10 +285,15 @@ const AppContent = () => {
         description: roleMessage,
       });
 
-      // ✅ CRITICAL: Navigate to appropriate page based on new role
+      // ✅ Navigate to appropriate page
       const redirectPath = newRole === 'seller' ? '/listings' : '/';
       console.log('📍 Role switch redirect to:', redirectPath);
       navigate(redirectPath);
+
+      // ✅ Force reload to ensure clean state
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
 
     } catch (error) {
       console.error('❌ Role switch error:', error);
@@ -334,40 +353,78 @@ const AppContent = () => {
     updateAppState({ currentLang: lang });
   };
 
+  // ✅ IMPROVED: App Initialization with better error handling
   useEffect(() => {
-    const initializeApp = () => {
-      const token = localStorage.getItem('token');
-      const role = localStorage.getItem('role');
-      const userId = localStorage.getItem('userId');
-      const userName = localStorage.getItem('userName');
-      const userImage = localStorage.getItem('userImage');
-      const originalRole = localStorage.getItem('originalRole');
-      
-      console.log("🔄 App: Initializing from localStorage", { 
-        userId, 
-        role, 
-        userName,
-        hasImage: !!userImage 
-      });
-      
-      if (token && role && userId) {
-        const newState: Partial<AppState> = {
-          isAuthenticated: true,
-          userRole: role,
-          userId: userId,
-          userName: userName || '',
-          userImage: userImage || '',
-          originalRole: originalRole || role
-        };
+    const initializeApp = async () => {
+      try {
+        console.log("🎯 App: Starting initialization...");
         
-        updateAppState(newState);
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        const userId = localStorage.getItem('userId');
+        const userName = localStorage.getItem('userName');
+        const userImage = localStorage.getItem('userImage');
+        const originalRole = localStorage.getItem('originalRole');
         
-        // Load package for the current role
-        loadUserPackage(userId, role);
-      } else {
-        // Clear everything if not authenticated
-        clearPackageFromLocalStorage();
-        localStorage.removeItem('originalRole');
+        console.log("🔄 App: Initializing from localStorage", { 
+          hasToken: !!token, 
+          userId, 
+          role, 
+          userName,
+          hasImage: !!userImage 
+        });
+        
+        if (token && role && userId) {
+          // ✅ CRITICAL: Initialize currentRole if not set
+          let currentRole = localStorage.getItem('currentRole');
+          if (!currentRole) {
+            currentRole = role;
+            localStorage.setItem('currentRole', currentRole);
+            console.log("✅ App: Set currentRole from role:", currentRole);
+          } else {
+            console.log("✅ App: Using existing currentRole:", currentRole);
+          }
+          
+          const newState: Partial<AppState> = {
+            isAuthenticated: true,
+            userRole: currentRole,
+            userId: userId,
+            userName: userName || '',
+            userImage: userImage || '',
+            originalRole: originalRole || role
+          };
+          
+          updateAppState(newState);
+          
+          // Load package for the current role
+          await loadUserPackage(userId, currentRole);
+        } else {
+          // Clear everything if not authenticated
+          console.log("🔒 App: No valid authentication found, clearing state");
+          clearPackageFromLocalStorage();
+          localStorage.removeItem('originalRole');
+          localStorage.removeItem('currentRole');
+        }
+
+        // Mark app as initialized
+        setIsAppInitialized(true);
+        console.log("✅ App: Initialization completed successfully");
+
+        const t = translations[appState.currentLang];
+        toast({
+          title: t.appReady,
+          description: "Application is now ready to use",
+        });
+
+      } catch (error) {
+        console.error('❌ App: Initialization error:', error);
+        setIsAppInitialized(true); // Still mark as initialized to show UI
+        
+        toast({
+          title: "Initialization Error",
+          description: "There was an issue loading the application",
+          variant: "destructive"
+        });
       }
     };
 
@@ -376,17 +433,32 @@ const AppContent = () => {
 
   // Debug current state
   useEffect(() => {
-    console.log('🔍 App State Updated:', {
-      isAuthenticated: appState.isAuthenticated,
-      userRole: appState.userRole,
-      userId: appState.userId,
-      userName: appState.userName,
-      hasImage: !!appState.userImage,
-      imageLength: appState.userImage?.length,
-      hasPackage: !!appState.userPackage,
-      packageType: appState.userPackage?.packageType
-    });
-  }, [appState]);
+    if (isAppInitialized) {
+      console.log('🔍 App State Updated:', {
+        isAuthenticated: appState.isAuthenticated,
+        userRole: appState.userRole,
+        userId: appState.userId,
+        userName: appState.userName,
+        hasImage: !!appState.userImage,
+        imageLength: appState.userImage?.length,
+        hasPackage: !!appState.userPackage,
+        packageType: appState.userPackage?.packageType,
+        currentRoleFromStorage: localStorage.getItem('currentRole')
+      });
+    }
+  }, [appState, isAppInitialized]);
+
+  // ✅ Loading state while app initializes
+  if (!isAppInitialized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">{translations[appState.currentLang].loading}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -421,6 +493,8 @@ const AppContent = () => {
 
 // Main App Component
 function App() {
+  console.log("🎯 Root App component rendering");
+  
   return (
     <BrowserRouter>
       <AppContent />

@@ -106,6 +106,12 @@ const Listings = ({ searchTerm = "", currentLang = "en" }: ListingsProps) => {
 
   const t = translations[currentLang];
 
+  // Ensure we have the current role from localStorage
+  useEffect(() => {
+    const currentRole = localStorage.getItem('currentRole') || localStorage.getItem('role');
+    console.log('🔍 Listings Component - Current role:', currentRole);
+  }, []);
+
   // Function to translate plot sub-type to Marathi
   const translatePlotSubType = (subType: string): string => {
     if (currentLang !== 'mr') return subType;
@@ -173,11 +179,14 @@ const Listings = ({ searchTerm = "", currentLang = "en" }: ListingsProps) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) return null;
+
+      // Check localStorage for current role first
+      const currentRole = localStorage.getItem('currentRole') || localStorage.getItem('role');
       
       const payload = JSON.parse(atob(token.split('.')[1]));
       return {
         _id: payload.userId,
-        role: payload.role,
+        role: currentRole || payload.role, // Use current role from localStorage
         name: payload.name,
         email: payload.email
       };
