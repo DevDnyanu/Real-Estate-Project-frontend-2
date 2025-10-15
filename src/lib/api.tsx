@@ -1,13 +1,34 @@
-const BASE = "http://localhost:5000";
-// const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+//  const BASE = "http://localhost:5000";
+const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
-// Export BASE_URL for use in other components
-export const BASE_URL = BASE;
-
-// Attach Authorization header if token is present
+// Enhanced authHeaders function with role support
 export const authHeaders = () => {
   const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  
+  // ✅ FIXED: Get current role with better fallback logic
+  let currentRole = localStorage.getItem('currentRole');
+  
+  // If no currentRole, try to get from role or default to buyer
+  if (!currentRole) {
+    currentRole = localStorage.getItem('role') || 'buyer';
+    // Save it for future use
+    localStorage.setItem('currentRole', currentRole);
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  // ✅ CRITICAL: Always send the current selected role - UPPERCASE header
+  headers['X-Current-Role'] = currentRole;
+  
+  console.log('🔧 authHeaders - Headers being sent:', headers);
+  
+  return headers;
 };
 
 // Enhanced parseJson function
@@ -45,17 +66,9 @@ const parseJson = async (res: Response) => {
 // Get user profile
 export const getProfileApi = async () => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
     const response = await fetch(`${BASE}/api/auth/profile`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
+      headers: authHeaders()
     });
 
     const data = await parseJson(response);
@@ -79,17 +92,9 @@ export const updateProfileApi = async (profileData: {
   image?: string;
 }) => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
     const response = await fetch(`${BASE}/api/auth/profile`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
+      headers: authHeaders(),
       body: JSON.stringify(profileData)
     });
 
@@ -109,18 +114,13 @@ export const updateProfileApi = async (profileData: {
 // Upload profile image
 export const uploadProfileImageApi = async (file: File) => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
     const formData = new FormData();
     formData.append("profileImage", file);
 
     const response = await fetch(`${BASE}/api/auth/profile/upload-image`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`
+        'Authorization': authHeaders().Authorization || ''
       },
       body: formData
     });
@@ -141,17 +141,9 @@ export const uploadProfileImageApi = async (file: File) => {
 // Remove profile image
 export const removeProfileImageApi = async () => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
     const response = await fetch(`${BASE}/api/auth/profile/remove-image`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
+      headers: authHeaders()
     });
 
     const data = await parseJson(response);
@@ -220,10 +212,7 @@ export const verifyToken = async (token: string) => {
   try {
     const res = await fetch(`${BASE}/api/auth/verify`, {
       method: "GET",
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: authHeaders()
     });
     
     const data = await parseJson(res);
@@ -322,10 +311,7 @@ export const resetPasswordApi = async (email: string, resetToken: string, newPas
 export const createListingApi = async (formData: any) => {
   const res = await fetch(`${BASE}/api/listings`, {
     method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("token")}`
-    },
+    headers: authHeaders(),
     body: JSON.stringify(formData),
   });
   const data = await res.json();
@@ -337,7 +323,6 @@ export const uploadImagesApi = async (listingId: string, files: File[]) => {
   try {
     const formData = new FormData();
     
-    // Append each file to the formData
     files.forEach((file) => {
       formData.append('images', file);
     });
@@ -345,7 +330,7 @@ export const uploadImagesApi = async (listingId: string, files: File[]) => {
     const response = await fetch(`${BASE}/api/listings/${listingId}/upload-images`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`
+        'Authorization': authHeaders().Authorization || ''
       },
       body: formData,
     });
@@ -369,7 +354,7 @@ export const uploadVideoApi = async (listingId: string, file: File) => {
   const res = await fetch(`${BASE}/api/listings/${listingId}/upload-videos`, {
     method: "POST",
     headers: { 
-      Authorization: `Bearer ${localStorage.getItem("token")}`
+      'Authorization': authHeaders().Authorization || ''
     },
     body: formData,
   });
@@ -405,7 +390,7 @@ export const getListingApi = async (id: string) => {
 export const updateListingApi = async (id: string, payload: any) => {
   const res = await fetch(`${BASE}/api/listings/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: authHeaders(),
     body: JSON.stringify(payload),
   });
   const data = await parseJson(res);
@@ -425,22 +410,22 @@ export const deleteListingApi = async (id: string) => {
 
 export const getListingsApi = async () => {
   try {
-    // Get current role from localStorage
-    const currentRole = localStorage.getItem('role') || 'buyer';
-
+    const headers = authHeaders();
+    console.log('🔄 getListingsApi - Making request with headers:', headers);
+    
     const res = await fetch(`${BASE}/api/listings`, {
-      headers: {
-        ...authHeaders(),
-        'x-current-role': currentRole // Add current role header
-      }
+      headers: headers
     });
+    
+    console.log('📊 getListingsApi - Response status:', res.status);
+    
     const data = await parseJson(res);
+    console.log('📊 getListingsApi - Response data received');
 
     if (!res.ok) {
       throw new Error(data.message || `Failed to fetch listings: ${res.status}`);
     }
 
-    // Handle different response formats
     let listings = [];
     if (data && data.listings) {
       listings = data.listings;
@@ -450,25 +435,21 @@ export const getListingsApi = async () => {
       listings = data.data;
     }
 
-    // Ensure all listings have proper image URLs
     const listingsWithMedia = listings.map((listing: any) => {
-      // Handle both string URLs and ObjectId references
       const images = Array.isArray(listing.images) ? listing.images : [];
       const videos = Array.isArray(listing.videos) ? listing.videos : [];
       
       const processedImages = images.map((img: any) => {
         if (typeof img === 'string' && img.startsWith('http')) {
-          return img; // Already a URL
+          return img;
         }
-        // Convert ObjectId to URL
         return `${BASE}/api/listings/image/${img}`;
       });
 
       const processedVideos = videos.map((vid: any) => {
         if (typeof vid === 'string' && vid.startsWith('http')) {
-          return vid; // Already a URL
+          return vid;
         }
-        // Convert ObjectId to URL
         return `${BASE}/api/listings/video/${vid}`;
       });
 
@@ -496,10 +477,7 @@ export const getListingsApi = async () => {
 export const deleteImageApi = async (listingId: string, imageUrl: string) => {
   const response = await fetch(`${BASE}/api/listings/${listingId}/images`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders()
-    },
+    headers: authHeaders(),
     body: JSON.stringify({ imageUrl }),
   });
   
@@ -516,7 +494,8 @@ export const getCurrentUserFromToken = () => {
     const token = localStorage.getItem("token");
     if (!token) return null;
 
-    // Extract token without 'Bearer ' prefix if present
+    const currentRole = localStorage.getItem('currentRole') || localStorage.getItem('role');
+    
     const actualToken = token.replace(/^Bearer\s+/i, '');
     
     if (actualToken.split('.').length !== 3) {
@@ -535,15 +514,15 @@ export const getCurrentUserFromToken = () => {
     
     return {
       _id: payload.userId || payload._id || payload.sub,
-      role: payload.role,
+      role: currentRole || payload.role,
       name: payload.name || payload.username,
       email: payload.email,
-      exp: payload.exp // expiration timestamp
+      exp: payload.exp
     };
   } catch (error) {
     console.error("Error decoding token:", error);
-    // Clear invalid token
     localStorage.removeItem('token');
+    localStorage.removeItem('currentRole');
     return null;
   }
 };
@@ -595,26 +574,20 @@ export interface VerifyPaymentResponse {
   payment: any;
 }
 
-// Get user's current package
+// Get user's current package - FIXED
 export const getUserPackageApi = async (userType?: string): Promise<PackageResponse> => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
+    const headers = authHeaders();
+    console.log('🔄 Fetching package with headers:', headers);
 
     let url = `${BASE}/api/packages/user-package`;
-    
     if (userType) {
       url += `?userType=${userType}`;
     }
 
-    console.log('🔄 Fetching package from URL:', url);
-
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: headers
     });
 
     if (!response.ok) {
@@ -629,27 +602,16 @@ export const getUserPackageApi = async (userType?: string): Promise<PackageRespo
   }
 };
 
-// Activate free package
+// Activate free package - FIXED
 export const activateFreePackageApi = async (packageType: string, userType: string): Promise<PackageResponse> => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/activate-free`;
     
-    console.log('🎯 Activating package at URL:', url);
-    console.log('📤 Request body:', { packageType, userType });
-
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        packageType,
-        userType
-      })
+      headers: headers,
+      body: JSON.stringify({ packageType, userType })
     });
 
     if (!response.ok) {
@@ -664,20 +626,15 @@ export const activateFreePackageApi = async (packageType: string, userType: stri
   }
 };
 
-// Create payment order
+// Create payment order - FIXED
 export const createPaymentOrderApi = async (packageType: string, userType: string = 'buyer'): Promise<CreateOrderResponse> => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/create-order`;
     
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: headers,
       body: JSON.stringify({ 
         packageType: packageType, 
         userType: userType 
@@ -696,19 +653,15 @@ export const createPaymentOrderApi = async (packageType: string, userType: strin
   }
 };
 
+// Verify payment - FIXED
 export const verifyPaymentApi = async (paymentData: any) => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/verify-payment`;
     
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: headers,
       body: JSON.stringify(paymentData)
     });
     
@@ -724,22 +677,17 @@ export const verifyPaymentApi = async (paymentData: any) => {
   }
 };
 
-// Check if user can perform action
+// Check if user can perform action - FIXED
 export const canPerformActionApi = async (actionType: string = 'view') => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/can-perform?actionType=${actionType}`;
     
     console.log('🔍 Checking action permission at:', url);
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: headers
     });
     
     if (!response.ok) {
@@ -754,22 +702,17 @@ export const canPerformActionApi = async (actionType: string = 'view') => {
   }
 };
 
-// Update package usage
+// Update package usage - FIXED
 export const updatePackageUsageApi = async (action: 'increment' | 'decrement') => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/update-usage`;
     
     console.log('🔄 Updating package usage at:', url, { action });
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: headers,
       body: JSON.stringify({ action })
     });
     
@@ -785,22 +728,17 @@ export const updatePackageUsageApi = async (action: 'increment' | 'decrement') =
   }
 };
 
-// Get package history
+// Get package history - FIXED
 export const getPackageHistoryApi = async () => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/history`;
     
     console.log('📚 Fetching package history from:', url);
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: headers
     });
     
     if (!response.ok) {
@@ -815,22 +753,17 @@ export const getPackageHistoryApi = async () => {
   }
 };
 
-// Get available packages
+// Get available packages - FIXED
 export const getAvailablePackagesApi = async (userType: string = 'buyer') => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-
+    const headers = authHeaders();
     const url = `${BASE}/api/packages/available?userType=${userType}`;
     
     console.log('📦 Fetching available packages from:', url);
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: headers
     });
     
     if (!response.ok) {
