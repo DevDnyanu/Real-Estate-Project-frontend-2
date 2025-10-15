@@ -1,7 +1,8 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ShoppingCart, Store, Menu, X } from "lucide-react";
-import { BASE_URL } from "@/lib/api";
+ const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 interface ProfileMenuProps {
   userName?: string;
@@ -134,7 +135,7 @@ const ProfileMenu = ({
     
     // If it's a relative path, construct URL
     if (imagePath.startsWith('/uploads')) {
-      const fullUrl = `${BASE_URL}${imagePath}`;
+      const fullUrl = `${BASE}${imagePath}`;
       console.log("✅ ProfileMenu: Constructed URL:", fullUrl);
       return fullUrl;
     }
@@ -268,3 +269,5 @@ const ProfileMenu = ({
 };
 
 export default ProfileMenu;
+
+

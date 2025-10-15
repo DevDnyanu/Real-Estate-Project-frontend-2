@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import PropertyCard from "@/components/PropertyCard";
-import { getListingsApi, deleteListingApi } from "@/lib/api";
+import { getListingsApi, deleteListingApi, authHeaders } from "@/lib/api";
 import { Plus } from "lucide-react";
+const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+
 
 interface ListingsPageProps {
   searchTerm?: string;
@@ -41,7 +43,8 @@ const ListingsPage = ({
       deleteSuccess: "Listing deleted successfully",
       deleteFailed: "Failed to delete listing",
       sellerDashboard: "Seller Dashboard",
-      yourListings: "Your Listings"
+      yourListings: "Your Listings",
+      debugHeaders: "Debug Headers"
     },
     mr: {
       loading: "तुमची यादी लोड होत आहे...",
@@ -59,11 +62,34 @@ const ListingsPage = ({
       deleteSuccess: "यादी यशस्वीरित्या हटवली",
       deleteFailed: "यादी हटवण्यात अयशस्वी",
       sellerDashboard: "विक्रेता डॅशबोर्ड",
-      yourListings: "तुमची यादी"
+      yourListings: "तुमची यादी",
+      debugHeaders: "हेडर डीबग करा"
     }
   };
 
   const t = translations[currentLang];
+
+  const debugHeaders = async () => {
+    const headers = authHeaders();
+    console.log('🔧 Current Headers:', headers);
+    
+    // Test the API call manually
+    try {
+      const response = await fetch(`${BASE}/api/listings`, {
+        headers: headers
+      });
+      console.log('🔧 Response Status:', response.status);
+      
+      const data = await response.json();
+      console.log('🔧 Response Data:', data);
+      
+      // Show alert with debug info
+      alert(`Debug Info:\nHeaders Sent: ${JSON.stringify(headers, null, 2)}\nResponse Status: ${response.status}\nListings Count: ${data.listings ? data.listings.length : 'N/A'}`);
+    } catch (error) {
+      console.error('🔧 Debug Error:', error);
+      alert(`Debug Error: ${error}`);
+    }
+  };
 
   const getCurrentUser = () => {
     try {
@@ -94,13 +120,27 @@ const ListingsPage = ({
       const data = await getListingsApi();
       const user = getCurrentUser();
 
+      console.log("📊 ListingsPage - Raw API Response:", data);
+      console.log("👤 ListingsPage - Current User:", user);
+
       if (data && data.success && Array.isArray(data.listings)) {
         // Filter listings to show only user's own listings
-        const userListings = data.listings.filter(listing => 
-          listing.userRef === user?._id || 
-          (listing.userRef && listing.userRef._id === user?._id) ||
-          listing.userId === user?._id
-        );
+        const userListings = data.listings.filter(listing => {
+          const isOwner = listing.userRef === user?._id || 
+                         (listing.userRef && listing.userRef._id === user?._id) ||
+                         listing.userId === user?._id;
+          
+          console.log(`📝 Listing ${listing._id}:`, {
+            name: listing.name,
+            userRef: listing.userRef,
+            currentUser: user?._id,
+            isOwner: isOwner
+          });
+          
+          return isOwner;
+        });
+        
+        console.log("✅ Filtered User Listings:", userListings.length);
         setListings(userListings);
       } else if (Array.isArray(data)) {
         const userListings = data.filter(listing => 
@@ -190,13 +230,42 @@ const ListingsPage = ({
           </div>
           
           {/* Create New Button - Top Right */}
-          <div className="w-full md:w-auto md:ml-auto">
+          <div className="w-full md:w-auto md:ml-auto flex flex-col sm:flex-row gap-2">
+            <Button 
+              onClick={debugHeaders}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors duration-200 flex items-center space-x-2 w-full md:w-auto justify-center"
+            >
+              <span>🐛</span>
+              <span>{t.debugHeaders}</span>
+            </Button>
             <Button 
               onClick={handleCreateNew}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors duration-200 flex items-center space-x-2 w-full md:w-auto justify-center"
             >
               <Plus className="h-4 w-4" />
               <span>{t.createNew}</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Debug Info Section */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-yellow-800 font-semibold">Debug Information</h3>
+              <p className="text-yellow-700 text-sm">
+                Current Role: <strong>{userRole}</strong> | 
+                User ID: <strong>{userId}</strong> | 
+                Total Listings: <strong>{listings.length}</strong>
+              </p>
+            </div>
+            <Button 
+              onClick={debugHeaders}
+              variant="outline" 
+              size="sm"
+              className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+            >
+              Test Headers
             </Button>
           </div>
         </div>
@@ -232,17 +301,36 @@ const ListingsPage = ({
             <p className="text-gray-600 mb-6">
               {t.createFirst}
             </p>
-            <Button 
-              onClick={handleCreateNew}
-              className="bg-blue-600 hover:bg-blue-700 flex items-center space-x-2 mx-auto"
-            >
-              <Plus className="h-4 w-4" />
-              <span>{t.createListing}</span>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                onClick={debugHeaders}
+                className="bg-yellow-600 hover:bg-yellow-700 flex items-center space-x-2"
+              >
+                <span>🐛</span>
+                <span>{t.debugHeaders}</span>
+              </Button>
+              <Button 
+                onClick={handleCreateNew}
+                className="bg-blue-600 hover:bg-blue-700 flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{t.createListing}</span>
+              </Button>
+            </div>
           </div>
         ) : (
           <>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">{t.yourListings}</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">{t.yourListings}</h2>
+              <Button 
+                onClick={debugHeaders}
+                variant="outline" 
+                size="sm"
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                🐛 Debug
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {listings.map((listing) => (
                 <PropertyCard

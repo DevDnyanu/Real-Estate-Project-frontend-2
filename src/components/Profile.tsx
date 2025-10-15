@@ -28,7 +28,8 @@ interface UserData {
 }
 
 // Import BASE URL and authHeaders from api.tsx to ensure consistency
-import { BASE_URL, authHeaders } from '@/lib/api';
+import {  authHeaders } from '@/lib/api';
+ const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 const Profile: React.FC<ProfileProps> = ({ 
   userRole, 
@@ -124,7 +125,7 @@ const Profile: React.FC<ProfileProps> = ({
       setIsLoading(true);
 
       console.log('🔄 Profile: Fetching profile data...');
-      const response = await fetch(`${BASE_URL}/api/auth/profile`, {
+      const response = await fetch(`${BASE}/api/auth/profile`, {
         headers: {
           ...authHeaders(),
           'Content-Type': 'application/json'
@@ -233,7 +234,7 @@ const Profile: React.FC<ProfileProps> = ({
           const imageBase64 = event.target?.result as string;
           console.log('Base64 image data length:', imageBase64.length);
 
-          const response = await fetch(`${BASE_URL}/api/auth/profile/upload-image`, {
+          const response = await fetch(`${BASE}/api/auth/profile/upload-image`, {
             method: 'POST',
             headers: {
               ...authHeaders(),
@@ -309,7 +310,7 @@ const Profile: React.FC<ProfileProps> = ({
 
   const handleRemoveImage = async () => {
     try {
-      const response = await fetch(`${BASE_URL}/api/auth/profile/remove-image`, {
+      const response = await fetch(`${BASE}/api/auth/profile/remove-image`, {
         method: 'DELETE',
         headers: {
           ...authHeaders(),
@@ -362,7 +363,7 @@ const Profile: React.FC<ProfileProps> = ({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${BASE_URL}/api/auth/profile`, {
+      const response = await fetch(`${BASE}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -451,7 +452,7 @@ const Profile: React.FC<ProfileProps> = ({
     
     // If it's a relative path (old method), construct URL
     if (imagePath.startsWith('/uploads')) {
-      return `${BASE_URL}${imagePath}`;
+      return `${BASE}${imagePath}`;
     }
     
     // Return as is (could be base64 or other format)

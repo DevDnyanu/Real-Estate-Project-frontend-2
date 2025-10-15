@@ -6,8 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Phone, Mail, MapPin, Clock, Send, Loader2, CheckCircle, Building2, Globe } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { BASE_URL } from "@/lib/api";
-
+const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 interface ContactProps {
   currentLang: 'en' | 'mr';
 }
@@ -141,7 +140,7 @@ const Contact = ({ currentLang }: ContactProps) => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${BASE_URL}/api/contact/send`, {
+      const response = await fetch(`${BASE}/api/contact/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
