@@ -1,6 +1,5 @@
-//  const BASE = "https://localhost:5000";
- 
-const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+//  const BASE = "http://localhost:5000";
+export const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 // Enhanced authHeaders function with role support
 export const authHeaders = () => {
@@ -59,6 +58,35 @@ const parseJson = async (res: Response) => {
   } catch (e) {
     console.error("JSON parse error:", e, "Response text:", text);
     return { success: false, message: "Invalid JSON response" };
+  }
+};
+
+
+/* ---------------- ROLE SWITCH API ---------------- */
+export const switchRoleApi = async (newRole: string) => {
+  try {
+    console.log(`🔄 Switching role to: ${newRole}`);
+    
+    const response = await fetch(`${BASE}/api/auth/switch-role`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeaders().Authorization || '',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ newRole })
+    });
+
+    const data = await parseJson(response);
+
+    if (!response.ok) {
+      throw new Error(data.message || `Failed to switch role: ${response.status}`);
+    }
+
+    console.log('✅ Role switch API response:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Role switch API error:', error);
+    throw error;
   }
 };
 
@@ -581,10 +609,9 @@ export const getUserPackageApi = async (userType?: string): Promise<PackageRespo
     const headers = authHeaders();
     console.log('🔄 Fetching package with headers:', headers);
 
-    let url = `${BASE}/api/packages/user-package`;
-    if (userType) {
-      url += `?userType=${userType}`;
-    }
+    // ✅ IMPROVED: Always send current role in query parameter
+    const currentRole = localStorage.getItem('currentRole') || 'buyer';
+    const url = `${BASE}/api/packages/user-package?userType=${currentRole}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -602,6 +629,7 @@ export const getUserPackageApi = async (userType?: string): Promise<PackageRespo
     throw error;
   }
 };
+
 
 // Activate free package - FIXED
 export const activateFreePackageApi = async (packageType: string, userType: string): Promise<PackageResponse> => {
@@ -631,7 +659,7 @@ export const activateFreePackageApi = async (packageType: string, userType: stri
 export const createPaymentOrderApi = async (packageType: string, userType: string = 'buyer'): Promise<CreateOrderResponse> => {
   try {
     const headers = authHeaders();
-    const url = `${BASE}/api/packages/create-order`;
+    const url = `${BASE}/api/payments/create-order`; // ✅ CHANGED TO PAYMENTS
     
     const response = await fetch(url, {
       method: 'POST',
@@ -653,12 +681,11 @@ export const createPaymentOrderApi = async (packageType: string, userType: strin
     throw error;
   }
 };
-
 // Verify payment - FIXED
 export const verifyPaymentApi = async (paymentData: any) => {
   try {
     const headers = authHeaders();
-    const url = `${BASE}/api/packages/verify-payment`;
+    const url = `${BASE}/api/payments/verify-payment`; // ✅ CHANGED TO PAYMENTS
     
     const response = await fetch(url, {
       method: 'POST',

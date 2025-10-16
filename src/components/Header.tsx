@@ -12,6 +12,7 @@ import {
 import ProfileMenu from "@/components/ProfileMenu";
 import LoginMenu from "@/components/LoginMenu";
 import Logo from "@/assets/Logo.jpg";
+import { switchRoleApi } from "@/lib/api";
 
 interface HeaderProps {
   currentLang: "en" | "mr"; 
@@ -42,7 +43,8 @@ const translations = {
     switchToBuyer: "Switch to Buyer",
     switchToSeller: "Switch to Seller",
     currentRole: "Current Role",
-    createListing: "Create Listing"
+    createListing: "Create Listing",
+    switchingRole: "Switching role...",
   },
   mr: {
     brand: "प्लॉटचॅम्प्स",
@@ -61,7 +63,8 @@ const translations = {
     switchToBuyer: "खरेदीदार मोडमध्ये बदला",
     switchToSeller: "विक्रेता मोडमध्ये बदला",
     currentRole: "सध्याची भूमिका",
-    createListing: "लिस्टिंग तयार करा"
+    createListing: "लिस्टिंग तयार करा",
+    switchingRole: "रोल बदलत आहे...",
   },
 };
 
@@ -78,6 +81,7 @@ const Header = ({
   const navigate = useNavigate();
   const t = translations[currentLang]; 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
 
   // Sync role with localStorage on component mount
   useEffect(() => {
@@ -97,21 +101,53 @@ const Header = ({
     setMenuOpen(false);
   };
 
-  const handleRoleSwitch = (newRole: string) => {
-    if (onRoleSwitch) {
-      // Store the current role in localStorage for API calls
-      localStorage.setItem('currentRole', newRole);
-      console.log('💾 Header: Stored currentRole in localStorage:', newRole);
-      
-      onRoleSwitch(newRole);
-      setMenuOpen(false);
-      
-      // Redirect based on new role
-      if (newRole === "seller") {
-        navigate("/listings");
-      } else {
-        navigate("/properties");
+  // ✅ UPDATED ROLE SWITCH FUNCTION WITHOUT ALERTS
+  const handleRoleSwitch = async (newRole: string) => {
+    try {
+      if (newRole === userRole) {
+        console.log('⚠️ Already in this role, no switch needed');
+        setMenuOpen(false);
+        return;
       }
+
+      console.log(`🔄 Switching role from ${userRole} to ${newRole}`);
+      setIsSwitchingRole(true);
+
+      // Call API to switch role and get new token
+      const response = await switchRoleApi(newRole);
+      
+      if (response.status === 'success') {
+        // Store new token and user data
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('currentRole', newRole);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        console.log('✅ Role switched successfully, new token stored');
+        
+        // Update parent component state
+        if (onRoleSwitch) {
+          onRoleSwitch(newRole);
+        }
+        
+        setMenuOpen(false);
+        
+        // Redirect based on new role
+        if (newRole === "seller") {
+          navigate("/listings");
+        } else {
+          navigate("/properties");
+        }
+        
+        // Refresh the page to ensure all components use new token
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
+    } catch (error: any) {
+      console.error('❌ Role switch failed:', error);
+      // Error alert bhi remove kiya gaya
+    } finally {
+      setIsSwitchingRole(false);
     }
   };
 
@@ -178,6 +214,7 @@ const Header = ({
               onProfileClick={handleProfileClick}
               onRoleSwitch={handleRoleSwitch}
               currentLang={currentLang}
+              isSwitchingRole={isSwitchingRole}
             />
           )}
 
@@ -218,6 +255,7 @@ const Header = ({
         <button 
           className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           onClick={() => setMenuOpen(!menuOpen)}
+          disabled={isSwitchingRole}
         >
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -258,19 +296,19 @@ const Header = ({
                       variant="outline" 
                       size="sm"
                       onClick={() => handleRoleSwitch("buyer")}
-                      disabled={userRole === "buyer"}
+                      disabled={userRole === "buyer" || isSwitchingRole}
                       className="text-xs h-7"
                     >
-                      {t.switchToBuyer}
+                      {isSwitchingRole ? t.switchingRole : t.switchToBuyer}
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => handleRoleSwitch("seller")}
-                      disabled={userRole === "seller"}
+                      disabled={userRole === "seller" || isSwitchingRole}
                       className="text-xs h-7"
                     >
-                      {t.switchToSeller}
+                      {isSwitchingRole ? t.switchingRole : t.switchToSeller}
                     </Button>
                   </div>
                 </div>
@@ -300,6 +338,7 @@ const Header = ({
                 <Button 
                   variant="outline" 
                   onClick={onLogout}
+                  disabled={isSwitchingRole}
                   className="w-full py-2 text-sm h-9 text-red-600 border-red-200 hover:bg-red-50"
                 >
                   {t.logout}
@@ -339,6 +378,16 @@ const Header = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {isSwitchingRole && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-gray-700 font-medium">{t.switchingRole}</span>
           </div>
         </div>
       )}

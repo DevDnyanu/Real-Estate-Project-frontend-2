@@ -1,9 +1,7 @@
-
+// components/ProfileMenu.tsx - Updated version
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ShoppingCart, Store, Menu, X } from "lucide-react";
-// const BASE = "https://localhost:5000";
-const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 interface ProfileMenuProps {
   userName?: string;
@@ -14,6 +12,7 @@ interface ProfileMenuProps {
   onRoleSwitch: (newRole: string) => void;
   currentLang: "en" | "mr";
   isMobile?: boolean;
+  isSwitchingRole?: boolean;
 }
 
 const ProfileMenu = ({ 
@@ -24,7 +23,8 @@ const ProfileMenu = ({
   onProfileClick, 
   onRoleSwitch,
   currentLang,
-  isMobile = false
+  isMobile = false,
+  isSwitchingRole = false
 }: ProfileMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -39,7 +39,8 @@ const ProfileMenu = ({
       switchToSeller: "Switch to Seller",
       currentRole: "Current Role:",
       buyer: "Buyer",
-      seller: "Seller"
+      seller: "Seller",
+      switching: "Switching..."
     },
     mr: {
       myProfile: "माझे प्रोफाइल",
@@ -49,18 +50,10 @@ const ProfileMenu = ({
       switchToSeller: "विक्रेता मोडमध्ये बदला",
       currentRole: "सध्याची भूमिका:",
       buyer: "खरेदीदार",
-      seller: "विक्रेता"
+      seller: "विक्रेता",
+      switching: "बदलत आहे..."
     }
   };
-
-  // Debug: Check what ProfileMenu receives
-  useEffect(() => {
-    console.log("🔍 ProfileMenu: Received props", { 
-      userName, 
-      userImage: userImage ? `Has image (${userImage.substring(0, 50)}...)` : 'No image',
-      userRole 
-    });
-  }, [userImage, userName, userRole]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -97,51 +90,25 @@ const ProfileMenu = ({
     setIsOpen(false);
   };
 
-  // Valid image URL check - IMPROVED
   const isValidImageUrl = (url: string | undefined) => {
-    if (!url) {
-      console.log("❌ ProfileMenu: No image URL");
-      return false;
-    }
-    
-    const isValid = url.startsWith('data:image') || 
-                   url.startsWith('/uploads') ||
-                   url.includes('profile-') ||
-                   url.length > 1000; // Base64 images are long
-                   
-    console.log(`🔍 ProfileMenu: Image validation - ${isValid ? 'VALID' : 'INVALID'}`, { 
-      url: url.substring(0, 100) 
-    });
-    
-    return isValid;
+    if (!url) return false;
+    return url.startsWith('data:image') || 
+           url.startsWith('/uploads') ||
+           url.includes('profile-') ||
+           url.length > 1000;
   };
 
   const getImageUrl = (imagePath: string) => {
-    if (!imagePath) {
-      console.log("❌ ProfileMenu: No image path provided");
-      return '';
-    }
+    if (!imagePath) return '';
     
-    console.log("🔍 ProfileMenu: Processing image path", { 
-      type: imagePath.startsWith('data:image') ? 'Base64' : 
-            imagePath.startsWith('/uploads') ? 'Relative Path' : 'Other',
-      length: imagePath.length 
-    });
-    
-    // If it's base64 data URL, return directly
     if (imagePath.startsWith('data:image')) {
-      console.log("✅ ProfileMenu: Returning Base64 image directly");
       return imagePath;
     }
     
-    // If it's a relative path, construct URL
     if (imagePath.startsWith('/uploads')) {
-      const fullUrl = `${BASE}${imagePath}`;
-      console.log("✅ ProfileMenu: Constructed URL:", fullUrl);
-      return fullUrl;
+      return `${window.location.origin}${imagePath}`;
     }
     
-    console.log("⚠️ ProfileMenu: Returning original path");
     return imagePath;
   };
 
@@ -158,6 +125,7 @@ const ProfileMenu = ({
         }`}
         onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={!isMobile ? () => setIsOpen(true) : undefined}
+        disabled={isSwitchingRole}
       >
         {isMobile ? (
           <Menu className="h-5 w-5" />
@@ -168,25 +136,16 @@ const ProfileMenu = ({
                 src={getImageUrl(userImage)} 
                 alt={userName} 
                 className="h-8 w-8 rounded-full object-cover border-2 border-gray-200"
-                onError={(e) => {
-                  console.error("❌ ProfileMenu: Image failed to load:", {
-                    original: userImage,
-                    constructed: getImageUrl(userImage),
-                    error: e
-                  });
-                  setImageError(true);
-                }}
-                onLoad={() => {
-                  console.log("✅ ProfileMenu: Image loaded successfully");
-                  setImageError(false);
-                }}
+                onError={() => setImageError(true)}
               />
             ) : (
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center text-sm font-bold border-2 border-gray-200">
                 {getInitials(userName || '')}
               </div>
             )}
-            <span className="hidden sm:block font-medium">{userName}</span>
+            <span className="hidden sm:block font-medium">
+              {isSwitchingRole ? t.switching : userName}
+            </span>
           </>
         )}
       </Button>
@@ -227,7 +186,8 @@ const ProfileMenu = ({
             {/* Profile */}
             <button
               onClick={handleProfileClick}
-              className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors duration-200"
+              disabled={isSwitchingRole}
+              className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors duration-200 disabled:opacity-50"
             >
               <User className="h-4 w-4 text-blue-600" />
               <span>{t.myProfile}</span>
@@ -238,18 +198,20 @@ const ProfileMenu = ({
               {userRole === "seller" ? (
                 <button
                   onClick={() => handleRoleSwitch("buyer")}
-                  className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors duration-200"
+                  disabled={isSwitchingRole}
+                  className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors duration-200 disabled:opacity-50"
                 >
                   <ShoppingCart className="h-4 w-4" />
-                  <span>{t.switchToBuyer}</span>
+                  <span>{isSwitchingRole ? t.switching : t.switchToBuyer}</span>
                 </button>
               ) : (
                 <button
                   onClick={() => handleRoleSwitch("seller")}
-                  className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors duration-200"
+                  disabled={isSwitchingRole}
+                  className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors duration-200 disabled:opacity-50"
                 >
                   <Store className="h-4 w-4" />
-                  <span>{t.switchToSeller}</span>
+                  <span>{isSwitchingRole ? t.switching : t.switchToSeller}</span>
                 </button>
               )}
             </div>
@@ -257,7 +219,8 @@ const ProfileMenu = ({
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 border-t border-gray-100 mt-2 pt-2"
+              disabled={isSwitchingRole}
+              className="flex items-center space-x-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 border-t border-gray-100 mt-2 pt-2 disabled:opacity-50"
             >
               <LogOut className="h-4 w-4" />
               <span>{t.logout}</span>
@@ -270,5 +233,3 @@ const ProfileMenu = ({
 };
 
 export default ProfileMenu;
-
-
