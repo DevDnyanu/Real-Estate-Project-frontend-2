@@ -248,63 +248,72 @@ const AppContent = () => {
   };
 
   // ✅ FIXED: Role Switch Function with proper navigation
-  const handleRoleSwitch = async (newRole: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast({
-          title: "Error",
-          description: "Please login again",
-          variant: "destructive"
-        });
-        return;
-      }
+  // ✅ FIXED: Role Switch Function with proper navigation
+const handleRoleSwitch = async (newRole: string) => {
+  try {
+    console.log('🔄 START Role Switch =================');
+    console.log('Current Role:', appState.userRole);
+    console.log('Switching to:', newRole);
 
-      console.log('🔄 Switching role from', appState.userRole, 'to', newRole);
-
-      // ✅ CRITICAL: Update both state AND localStorage immediately
-      updateAppState({ 
-        userRole: newRole,
-        userPackage: null // Clear package when switching roles
-      });
-      
-      // ✅ Store in localStorage for API calls - THIS IS CRITICAL
-      localStorage.setItem('currentRole', newRole);
-      localStorage.setItem('role', newRole);
-
-      // ✅ Clear old package data
-      clearPackageFromLocalStorage();
-
-      // ✅ Load package for new role
-      await loadUserPackage();
-
-      const t = translations[appState.currentLang];
-      const roleMessage = newRole === 'buyer' ? t.switchToBuyer : t.switchToSeller;
-      
-      toast({
-        title: t.roleSwitchTitle,
-        description: roleMessage,
-      });
-
-      // ✅ Navigate to appropriate page
-      const redirectPath = newRole === 'seller' ? '/listings' : '/';
-      console.log('📍 Role switch redirect to:', redirectPath);
-      navigate(redirectPath);
-
-      // ✅ Force reload to ensure clean state
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
-
-    } catch (error) {
-      console.error('❌ Role switch error:', error);
+    const token = localStorage.getItem('token');
+    if (!token) {
       toast({
         title: "Error",
-        description: "Failed to switch role",
+        description: "Please login again",
         variant: "destructive"
       });
+      return;
     }
-  };
+
+    // ✅ STEP 1: Update state immediately
+    updateAppState({ 
+      userRole: newRole,
+      userPackage: null
+    });
+    
+    // ✅ STEP 2: Update localStorage
+    localStorage.setItem('currentRole', newRole);
+    localStorage.setItem('role', newRole);
+    
+    console.log('✅ State and localStorage updated');
+
+    // ✅ STEP 3: Clear old package data
+    clearPackageFromLocalStorage();
+
+    // ✅ STEP 4: Load package for new role
+    try {
+      await loadUserPackage();
+      console.log('✅ Package loaded for new role');
+    } catch (packageError) {
+      console.log('⚠️ Package load error (continuing):', packageError);
+    }
+
+    const t = translations[appState.currentLang];
+    const roleMessage = newRole === 'buyer' ? t.switchToBuyer : t.switchToSeller;
+    
+    toast({
+      title: t.roleSwitchTitle,
+      description: roleMessage,
+    });
+
+    // ✅ STEP 5: CRITICAL - Use window.location for reliable navigation
+    const redirectPath = newRole === 'seller' ? '/listings' : '/';
+    
+    console.log('📍 FINAL Redirect Path:', redirectPath);
+    console.log('🎯 END Role Switch Process =================');
+    
+    // Use window.location for reliable navigation
+    window.location.href = redirectPath;
+
+  } catch (error) {
+    console.error('❌ Role switch error:', error);
+    toast({
+      title: "Error",
+      description: "Failed to switch role",
+      variant: "destructive"
+    });
+  }
+};
 
   // ✅ FIXED: Update Profile Function with proper image handling
   const handleUpdateProfile = (name: string, email: string, phone: string, image: string): void => {

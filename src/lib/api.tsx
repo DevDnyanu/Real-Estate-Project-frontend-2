@@ -78,17 +78,70 @@ const parseJson = async (res: Response) => {
   }
 };
 
+/* ---------------- IMAGE HANDLING UTILITIES - FIXED ---------------- */
+
+// ✅ CORRECT: Image URL processing function
+export const processImageUrl = (img: any): string => {
+  if (!img) {
+    return 'https://via.placeholder.com/400x300?text=No+Image';
+  }
+
+  // If it's already a full URL
+  if (typeof img === 'string' && img.startsWith('http')) {
+    return img;
+  }
+
+  // If it's a filename or path
+  if (typeof img === 'string') {
+    // Remove any leading slashes or backslashes
+    const cleanPath = img.replace(/^[\\/]+/, '');
+    
+    // Check if it's already a full path from backend
+    if (cleanPath.includes('uploads/')) {
+      return `${BASE}/${cleanPath}`;
+    }
+    
+    // Default image endpoint
+    return `${BASE}/api/listings/image/${cleanPath}`;
+  }
+
+  // If it's an object with url property
+  if (typeof img === 'object' && img.url) {
+    return processImageUrl(img.url);
+  }
+
+  // Fallback to placeholder
+  return 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+};
+
+// ✅ CORRECT: Process multiple images
+export const processImages = (images: any[]): string[] => {
+  if (!Array.isArray(images) || images.length === 0) {
+    return ['https://via.placeholder.com/400x300?text=No+Images'];
+  }
+
+  return images.map(processImageUrl);
+};
 
 /* ---------------- ROLE SWITCH API - FIXED ---------------- */
+/* ---------------- ROLE SWITCH API - PRODUCTION FIXED ---------------- */
 export const switchRoleApi = async (newRole: string) => {
   try {
     console.log(`🔄 Switching role to: ${newRole}`);
     
     const response = await fetch(`${BASE}/api/auth/switch-role`, {
       method: 'POST',
-      headers: authHeaders(), // ✅ FIXED: Use authHeaders() instead of manual headers
+      headers: authHeaders(),
       body: JSON.stringify({ newRole })
     });
+
+    console.log('📡 Role switch response status:', response.status);
+    
+    // ✅ CRITICAL FIX: Handle 404 specifically
+    if (response.status === 404) {
+      console.error('❌ Role switch endpoint not found (404)');
+      throw new Error('Role switch feature is currently unavailable. Please try again later.');
+    }
 
     const data = await parseJson(response);
 
@@ -96,10 +149,21 @@ export const switchRoleApi = async (newRole: string) => {
       throw new Error(data.message || `Failed to switch role: ${response.status}`);
     }
 
+    // ✅ Update local storage only after successful API call
+    localStorage.setItem('currentRole', newRole);
+    
     console.log('✅ Role switch API response:', data);
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Role switch API error:', error);
+    
+    // ✅ PRODUCTION: Provide user-friendly error messages
+    if (error.message.includes('404')) {
+      throw new Error('Unable to switch role at the moment. Please try again later.');
+    } else if (error.message.includes('Failed to fetch')) {
+      throw new Error('Network error. Please check your internet connection.');
+    }
+    
     throw error;
   }
 };
@@ -159,7 +223,6 @@ export const activateFreePackageApi = async (packageType: string): Promise<Packa
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ packageType })
-      // ✅ REMOVED: userType
     });
 
     if (!response.ok) {
@@ -173,7 +236,6 @@ export const activateFreePackageApi = async (packageType: string): Promise<Packa
     throw error;
   }
 };
-
 
 // Check if user can perform action - FIXED
 export const canPerformActionApi = async (actionType: string = 'view') => {
@@ -265,7 +327,6 @@ export const createPaymentOrderApi = async (packageType: string): Promise<Create
       headers: headers,
       body: JSON.stringify({ 
         packageType: packageType
-        // ✅ REMOVED: userType
       })
     });
     
@@ -305,7 +366,7 @@ export const verifyPaymentApi = async (paymentData: any) => {
   }
 };
 
-/* ---------------- PROFILE APIS ---------------- */
+/* ---------------- PROFILE APIS - FIXED ---------------- */
 
 // Get user profile
 export const getProfileApi = async () => {
@@ -319,6 +380,11 @@ export const getProfileApi = async () => {
 
     if (!response.ok) {
       throw new Error(data.message || "Failed to fetch profile");
+    }
+
+    // Process profile image
+    if (data.user && data.user.image) {
+      data.user.image = processImageUrl(data.user.image);
     }
 
     return data;
@@ -403,7 +469,7 @@ export const removeProfileImageApi = async () => {
   }
 };
 
-/* ---------------- AUTH APIS ---------------- */
+/* ---------------- AUTH APIS - FIXED ---------------- */
 export const signupApi = async (userData: {
   name: string;
   email: string;
@@ -551,7 +617,7 @@ export const resetPasswordApi = async (email: string, resetToken: string, newPas
   }
 };
 
-/* ---------------- LISTINGS APIS ---------------- */
+/* ---------------- LISTINGS APIS - COMPLETELY FIXED ---------------- */
 export const createListingApi = async (formData: any) => {
   const res = await fetch(`${BASE}/api/listings`, {
     method: "POST",
@@ -618,13 +684,15 @@ export const getListingApi = async (id: string) => {
       throw new Error(data.message || `Failed to fetch listing: ${res.status}`);
     }
 
-    if (data && data.listing) {
-      return data.listing;
-    } else if (data && data.data) {
-      return data.data;
-    } else {
-      return data;
+    let listing = data.listing || data.data || data;
+
+    // ✅ CORRECT: Process images for single listing
+    if (listing) {
+      listing.images = processImages(listing.images || []);
+      listing.videos = processImages(listing.videos || []);
     }
+
+    return listing;
   } catch (error) {
     console.error("Error fetching listing:", error);
     throw error;
@@ -652,6 +720,7 @@ export const deleteListingApi = async (id: string) => {
   return data;
 };
 
+// ✅ CORRECT: Get all listings with proper image handling
 export const getListingsApi = async () => {
   try {
     const headers = authHeaders();
@@ -664,7 +733,7 @@ export const getListingsApi = async () => {
     console.log('📊 getListingsApi - Response status:', res.status);
     
     const data = await parseJson(res);
-    console.log('📊 getListingsApi - Response data received');
+    console.log('📊 getListingsApi - Raw API response:', data);
 
     if (!res.ok) {
       throw new Error(data.message || `Failed to fetch listings: ${res.status}`);
@@ -679,30 +748,18 @@ export const getListingsApi = async () => {
       listings = data.data;
     }
 
+    // ✅ CORRECT: Process images for all listings
     const listingsWithMedia = listings.map((listing: any) => {
-      const images = Array.isArray(listing.images) ? listing.images : [];
-      const videos = Array.isArray(listing.videos) ? listing.videos : [];
+      console.log(`🏠 Processing listing ${listing._id}:`, listing.images);
       
-      const processedImages = images.map((img: any) => {
-        if (typeof img === 'string' && img.startsWith('http')) {
-          return img;
-        }
-        return `${BASE}/api/listings/image/${img}`;
-      });
-
-      const processedVideos = videos.map((vid: any) => {
-        if (typeof vid === 'string' && vid.startsWith('http')) {
-          return vid;
-        }
-        return `${BASE}/api/listings/video/${vid}`;
-      });
-
       return {
         ...listing,
-        images: processedImages,
-        videos: processedVideos
+        images: processImages(listing.images || []),
+        videos: processImages(listing.videos || [])
       };
     });
+
+    console.log('🎉 Final processed listings:', listingsWithMedia);
 
     return {
       success: true,
@@ -843,6 +900,84 @@ export const testPackageRoutesApi = async () => {
     return data;
   } catch (error) {
     console.error('❌ Error testing package routes:', error);
+    throw error;
+  }
+};
+
+// Get user's own listings
+export const getMyListingsApi = async () => {
+  try {
+    const headers = authHeaders();
+    const url = `${BASE}/api/listings/my-listings`;
+    
+    console.log('📋 Fetching my listings from:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Process images for my listings
+    if (data.listings) {
+      data.listings = data.listings.map((listing: any) => ({
+        ...listing,
+        images: processImages(listing.images || []),
+        videos: processImages(listing.videos || [])
+      }));
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching my listings:', error);
+    throw error;
+  }
+};
+
+// Search listings
+export const searchListingsApi = async (filters: any) => {
+  try {
+    const headers = authHeaders();
+    const queryParams = new URLSearchParams();
+    
+    // Add filters to query params
+    Object.keys(filters).forEach(key => {
+      if (filters[key]) {
+        queryParams.append(key, filters[key]);
+      }
+    });
+    
+    const url = `${BASE}/api/listings/search?${queryParams}`;
+    console.log('🔍 Searching listings at:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Process images for search results
+    if (data.listings) {
+      data.listings = data.listings.map((listing: any) => ({
+        ...listing,
+        images: processImages(listing.images || []),
+        videos: processImages(listing.videos || [])
+      }));
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error searching listings:', error);
     throw error;
   }
 };
