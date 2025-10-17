@@ -1,5 +1,22 @@
-//  const BASE = "http://localhost:5000";
-export const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+// ✅ DYNAMIC BASE URL for production
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const currentHost = window.location.hostname;
+    
+    // Production - HTTPS
+    if (currentHost.includes('plotchamps.in')) {
+      return "https://real-estate-project-backend-2-2.onrender.com";
+    }
+    
+    // Local development
+    return "http://localhost:5000";
+  }
+  
+  return "http://localhost:5000";
+};
+
+export const BASE = getBaseUrl();
+console.log('🌍 API Base URL:', BASE);
 
 // Enhanced authHeaders function with role support
 export const authHeaders = () => {
@@ -62,17 +79,14 @@ const parseJson = async (res: Response) => {
 };
 
 
-/* ---------------- ROLE SWITCH API ---------------- */
+/* ---------------- ROLE SWITCH API - FIXED ---------------- */
 export const switchRoleApi = async (newRole: string) => {
   try {
     console.log(`🔄 Switching role to: ${newRole}`);
     
     const response = await fetch(`${BASE}/api/auth/switch-role`, {
       method: 'POST',
-      headers: {
-        'Authorization': authHeaders().Authorization || '',
-        'Content-Type': 'application/json'
-      },
+      headers: authHeaders(), // ✅ FIXED: Use authHeaders() instead of manual headers
       body: JSON.stringify({ newRole })
     });
 
@@ -86,6 +100,207 @@ export const switchRoleApi = async (newRole: string) => {
     return data;
   } catch (error) {
     console.error('❌ Role switch API error:', error);
+    throw error;
+  }
+};
+
+/* ---------------- PACKAGE APIS - COMPLETELY FIXED ---------------- */
+
+export interface UserPackage {
+  _id?: string;
+  packageType: string;
+  userType: string;
+  purchaseDate: string;
+  expiryDate: string;
+  propertyLimit: number;
+  propertiesUsed: number;
+  isActive: boolean;
+  daysRemaining: number;
+  amount: number;
+  remaining: number;
+}
+
+export interface PackageResponse {
+  success: boolean;
+  package: UserPackage | null;
+  message?: string;
+}
+
+// Get user's current package - COMPLETELY FIXED
+export const getUserPackageApi = async (): Promise<PackageResponse> => {
+  try {
+    const headers = authHeaders();
+    console.log('🔄 Fetching package with headers:', headers);
+
+    const response = await fetch(`${BASE}/api/packages/user-package`, {
+      method: 'GET',
+      headers: headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching user package:', error);
+    throw error;
+  }
+};
+
+// Activate free package - FIXED
+export const activateFreePackageApi = async (packageType: string): Promise<PackageResponse> => {
+  try {
+    const headers = authHeaders();
+    const url = `${BASE}/api/packages/activate-free`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ packageType })
+      // ✅ REMOVED: userType
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('❌ Error activating free package:', error);
+    throw error;
+  }
+};
+
+
+// Check if user can perform action - FIXED
+export const canPerformActionApi = async (actionType: string = 'view') => {
+  try {
+    const headers = authHeaders();
+    const url = `${BASE}/api/packages/can-perform?actionType=${actionType}`;
+    
+    console.log('🔍 Checking action permission at:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('❌ Error checking action permission:', error);
+    throw error;
+  }
+};
+
+// Update package usage - FIXED
+export const updatePackageUsageApi = async (action: 'increment' | 'decrement') => {
+  try {
+    const headers = authHeaders();
+    const url = `${BASE}/api/packages/update-usage`;
+    
+    console.log('🔄 Updating package usage at:', url, { action });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ action })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating package usage:', error);
+    throw error;
+  }
+};
+
+/* ---------------- PAYMENT APIS - FIXED ---------------- */
+
+export interface CreateOrderResponse {
+  success: boolean;
+  order: {
+    id: string;
+    amount: number;
+    currency: string;
+    receipt: string;
+    status: string;
+  };
+  packageDetails: {
+    packageType: string;
+    userType: string;
+    amount: number;
+    duration: number;
+    propertyLimit: number;
+  };
+  key_id: string;
+}
+
+export interface VerifyPaymentResponse {
+  success: boolean;
+  message: string;
+  package: any;
+  payment: any;
+}
+
+// Create payment order - FIXED
+export const createPaymentOrderApi = async (packageType: string): Promise<CreateOrderResponse> => {
+  try {
+    const headers = authHeaders();
+    const url = `${BASE}/api/payments/create-order`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ 
+        packageType: packageType
+        // ✅ REMOVED: userType
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const responseData = await response.json();
+    return responseData;
+  } catch (error) {
+    console.error('Error creating payment order:', error);
+    throw error;
+  }
+};
+
+// Verify payment - FIXED
+export const verifyPaymentApi = async (paymentData: any) => {
+  try {
+    const headers = authHeaders();
+    const url = `${BASE}/api/payments/verify-payment`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(paymentData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const responseData = await response.json();
+    return responseData;
+  } catch (error) {
+    console.error('Error verifying payment:', error);
     throw error;
   }
 };
@@ -553,206 +768,6 @@ export const getCurrentUserFromToken = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('currentRole');
     return null;
-  }
-};
-
-/* ---------------- PACKAGE & PAYMENT APIS ---------------- */
-export interface UserPackage {
-  _id?: string;
-  packageType: string;
-  userType: string;
-  purchaseDate: string;
-  expiryDate: string;
-  propertyLimit: number;
-  propertiesUsed: number;
-  isActive: boolean;
-  daysRemaining: number;
-  amount: number;
-  remaining: number;
-}
-
-export interface PackageResponse {
-  success: boolean;
-  package: UserPackage | null;
-  message?: string;
-}
-
-export interface CreateOrderResponse {
-  success: boolean;
-  order: {
-    id: string;
-    amount: number;
-    currency: string;
-    receipt: string;
-    status: string;
-  };
-  packageDetails: {
-    packageType: string;
-    userType: string;
-    amount: number;
-    duration: number;
-    propertyLimit: number;
-  };
-  key_id: string;
-}
-
-export interface VerifyPaymentResponse {
-  success: boolean;
-  message: string;
-  package: any;
-  payment: any;
-}
-
-// Get user's current package - FIXED
-export const getUserPackageApi = async (userType?: string): Promise<PackageResponse> => {
-  try {
-    const headers = authHeaders();
-    console.log('🔄 Fetching package with headers:', headers);
-
-    // ✅ IMPROVED: Always send current role in query parameter
-    const currentRole = localStorage.getItem('currentRole') || 'buyer';
-    const url = `${BASE}/api/packages/user-package?userType=${currentRole}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: headers
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('❌ Error fetching user package:', error);
-    throw error;
-  }
-};
-
-
-// Activate free package - FIXED
-export const activateFreePackageApi = async (packageType: string, userType: string): Promise<PackageResponse> => {
-  try {
-    const headers = authHeaders();
-    const url = `${BASE}/api/packages/activate-free`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({ packageType, userType })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('❌ Error activating free package:', error);
-    throw error;
-  }
-};
-
-// Create payment order - FIXED
-export const createPaymentOrderApi = async (packageType: string, userType: string = 'buyer'): Promise<CreateOrderResponse> => {
-  try {
-    const headers = authHeaders();
-    const url = `${BASE}/api/payments/create-order`; // ✅ CHANGED TO PAYMENTS
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({ 
-        packageType: packageType, 
-        userType: userType 
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const responseData = await response.json();
-    return responseData;
-  } catch (error) {
-    console.error('Error creating payment order:', error);
-    throw error;
-  }
-};
-// Verify payment - FIXED
-export const verifyPaymentApi = async (paymentData: any) => {
-  try {
-    const headers = authHeaders();
-    const url = `${BASE}/api/payments/verify-payment`; // ✅ CHANGED TO PAYMENTS
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(paymentData)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const responseData = await response.json();
-    return responseData;
-  } catch (error) {
-    console.error('Error verifying payment:', error);
-    throw error;
-  }
-};
-
-// Check if user can perform action - FIXED
-export const canPerformActionApi = async (actionType: string = 'view') => {
-  try {
-    const headers = authHeaders();
-    const url = `${BASE}/api/packages/can-perform?actionType=${actionType}`;
-    
-    console.log('🔍 Checking action permission at:', url);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: headers
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('❌ Error checking action permission:', error);
-    throw error;
-  }
-};
-
-// Update package usage - FIXED
-export const updatePackageUsageApi = async (action: 'increment' | 'decrement') => {
-  try {
-    const headers = authHeaders();
-    const url = `${BASE}/api/packages/update-usage`;
-    
-    console.log('🔄 Updating package usage at:', url, { action });
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({ action })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('❌ Error updating package usage:', error);
-    throw error;
   }
 };
 

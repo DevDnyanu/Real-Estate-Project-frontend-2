@@ -28,9 +28,9 @@ interface UserData {
 }
 
 // Import BASE URL and authHeaders from api.tsx to ensure consistency
-import {  authHeaders } from '@/lib/api';
+import { BASE, authHeaders } from '@/lib/api';
 // const BASE = "http://localhost:5000";
-const BASE = "https://real-estate-project-backend-2-2.onrender.com";
+// const BASE = "https://real-estate-project-backend-2-2.onrender.com";
 
 const Profile: React.FC<ProfileProps> = ({ 
   userRole, 

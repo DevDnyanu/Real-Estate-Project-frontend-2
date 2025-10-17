@@ -101,55 +101,56 @@ const Header = ({
     setMenuOpen(false);
   };
 
-  // ✅ UPDATED ROLE SWITCH FUNCTION WITHOUT ALERTS
-  const handleRoleSwitch = async (newRole: string) => {
-    try {
-      if (newRole === userRole) {
-        console.log('⚠️ Already in this role, no switch needed');
-        setMenuOpen(false);
-        return;
-      }
-
-      console.log(`🔄 Switching role from ${userRole} to ${newRole}`);
-      setIsSwitchingRole(true);
-
-      // Call API to switch role and get new token
-      const response = await switchRoleApi(newRole);
-      
-      if (response.status === 'success') {
-        // Store new token and user data
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('currentRole', newRole);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        console.log('✅ Role switched successfully, new token stored');
-        
-        // Update parent component state
-        if (onRoleSwitch) {
-          onRoleSwitch(newRole);
-        }
-        
-        setMenuOpen(false);
-        
-        // Redirect based on new role
-        if (newRole === "seller") {
-          navigate("/listings");
-        } else {
-          navigate("/properties");
-        }
-        
-        // Refresh the page to ensure all components use new token
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      }
-    } catch (error: any) {
-      console.error('❌ Role switch failed:', error);
-      // Error alert bhi remove kiya gaya
-    } finally {
-      setIsSwitchingRole(false);
+  // Header component - UPDATED role switch function
+const handleRoleSwitch = async (newRole: string) => {
+  try {
+    if (newRole === userRole) {
+      console.log('⚠️ Already in this role, no switch needed');
+      setMenuOpen(false);
+      return;
     }
-  };
+
+    console.log(`🔄 Switching role from ${userRole} to ${newRole}`);
+    setIsSwitchingRole(true);
+
+    // Call API to switch role and get new token
+    const response = await switchRoleApi(newRole);
+    
+    if (response.status === 'success') {
+      // ✅ CRITICAL: Store new token and update ALL role storage
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('currentRole', newRole);
+      localStorage.setItem('role', newRole); // ✅ Update both
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      console.log('✅ Role switched successfully, tokens updated');
+      
+      // Update parent component state
+      if (onRoleSwitch) {
+        onRoleSwitch(newRole);
+      }
+      
+      setMenuOpen(false);
+      
+      // Clear package cache
+      localStorage.removeItem('selectedPackage');
+      localStorage.removeItem('userType');
+      
+      // Redirect based on new role
+      const redirectPath = newRole === "seller" ? "/listings" : "/properties";
+      navigate(redirectPath);
+      
+      // Refresh to ensure clean state
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+  } catch (error: any) {
+    console.error('❌ Role switch failed:', error);
+  } finally {
+    setIsSwitchingRole(false);
+  }
+};
 
   const displayName = userName ? userName.charAt(0).toUpperCase() + userName.slice(1) : '';
 

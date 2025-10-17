@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import PropertyCard from "@/components/PropertyCard";
-import { getListingsApi, deleteListingApi, authHeaders } from "@/lib/api";
+import { getListingsApi, deleteListingApi, authHeaders, } from "@/lib/api";
 import { Plus } from "lucide-react";
 // const BASE = "http://localhost:5000";
 const BASE = "https://real-estate-project-backend-2-2.onrender.com";

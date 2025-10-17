@@ -124,15 +124,16 @@ const AppContent = () => {
     }, 100);
   };
 
-  // ✅ IMPROVED: Load package with current role
-  const loadUserPackage = async (userId: string, role?: string) => {
-    if (!userId) return;
+  // ✅ FIXED: Load package - NO PARAMETERS NEEDED
+  const loadUserPackage = async () => {
+    if (!appState.userId) return;
 
     try {
-      const currentRole = role || appState.userRole;
-      console.log('🔄 Loading package for role:', currentRole);
+      console.log('🔄 Loading package for current role');
       
-      const response = await getUserPackageApi(currentRole);
+      // ✅ FIXED: No parameters needed - API uses currentRole from localStorage
+      const response = await getUserPackageApi();
+      
       if (response.success && response.package) {
         updateAppState({ userPackage: response.package });
         
@@ -144,9 +145,9 @@ const AppContent = () => {
         localStorage.setItem('packagePurchaseDate', response.package.purchaseDate);
         localStorage.setItem('packageExpiry', response.package.expiryDate);
         
-        console.log('✅ Package loaded for role:', currentRole, response.package);
+        console.log('✅ Package loaded:', response.package);
       } else {
-        console.log('ℹ️ No active package found for role:', currentRole);
+        console.log('ℹ️ No active package found');
         // Clear package data when no package found
         updateAppState({ userPackage: null });
         clearPackageFromLocalStorage();
@@ -232,7 +233,7 @@ const AppContent = () => {
     }
 
     // Load package for the logged-in role
-    loadUserPackage(userId, role);
+    loadUserPackage();
 
     const t = translations[appState.currentLang];
     toast({
@@ -275,7 +276,7 @@ const AppContent = () => {
       clearPackageFromLocalStorage();
 
       // ✅ Load package for new role
-      await loadUserPackage(appState.userId, newRole);
+      await loadUserPackage();
 
       const t = translations[appState.currentLang];
       const roleMessage = newRole === 'buyer' ? t.switchToBuyer : t.switchToSeller;
@@ -353,7 +354,7 @@ const AppContent = () => {
     updateAppState({ currentLang: lang });
   };
 
-  // ✅ IMPROVED: App Initialization with better error handling
+  // ✅ FIXED: App Initialization with better error handling
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -397,7 +398,7 @@ const AppContent = () => {
           updateAppState(newState);
           
           // Load package for the current role
-          await loadUserPackage(userId, currentRole);
+          await loadUserPackage();
         } else {
           // Clear everything if not authenticated
           console.log("🔒 App: No valid authentication found, clearing state");
@@ -485,8 +486,7 @@ const AppContent = () => {
         userName={appState.userName}
         userImage={appState.userImage}
       />
-<Toaster />
-      
+      <Toaster />
     </div>
   );
 };
