@@ -249,6 +249,7 @@ const AppContent = () => {
 
   // ✅ FIXED: Role Switch Function with proper navigation
   // ✅ FIXED: Role Switch Function with proper navigation
+// ✅ FIXED: Role Switch Function with proper navigation
 const handleRoleSwitch = async (newRole: string) => {
   try {
     console.log('🔄 START Role Switch =================');
@@ -296,14 +297,14 @@ const handleRoleSwitch = async (newRole: string) => {
       description: roleMessage,
     });
 
-    // ✅ STEP 5: CRITICAL - Use window.location for reliable navigation
+    // ✅ STEP 5: CRITICAL FIX - Use navigate() instead of window.location
     const redirectPath = newRole === 'seller' ? '/listings' : '/';
     
     console.log('📍 FINAL Redirect Path:', redirectPath);
     console.log('🎯 END Role Switch Process =================');
     
-    // Use window.location for reliable navigation
-    window.location.href = redirectPath;
+    // ✅ Use React Router navigate for client-side routing
+    navigate(redirectPath);
 
   } catch (error) {
     console.error('❌ Role switch error:', error);

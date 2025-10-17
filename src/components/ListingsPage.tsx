@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import PropertyCard from "@/components/PropertyCard";
-import { getListingsApi, deleteListingApi, authHeaders, } from "@/lib/api";
+import { getListingsApi, deleteListingApi, getMyListingsApi, authHeaders, } from "@/lib/api";
 import { Plus } from "lucide-react";
 // const BASE = "http://localhost:5000";
 const BASE = "https://real-estate-project-backend-2-2.onrender.com";
@@ -90,51 +90,53 @@ const ListingsPage = ({
     }
   };
 
-  const loadListings = async () => {
-    try {
-      setLoading(true);
-      const data = await getListingsApi();
-      const user = getCurrentUser();
-
-      console.log("📊 ListingsPage - Raw API Response:", data);
-      console.log("👤 ListingsPage - Current User:", user);
-
-      if (data && data.success && Array.isArray(data.listings)) {
-        // Filter listings to show only user's own listings
-        const userListings = data.listings.filter(listing => {
-          const isOwner = listing.userRef === user?._id || 
-                         (listing.userRef && listing.userRef._id === user?._id) ||
-                         listing.userId === user?._id;
-          
-          console.log(`📝 Listing ${listing._id}:`, {
-            name: listing.name,
-            userRef: listing.userRef,
-            currentUser: user?._id,
-            isOwner: isOwner
-          });
-          
-          return isOwner;
-        });
-        
-        console.log("✅ Filtered User Listings:", userListings.length);
-        setListings(userListings);
-      } else if (Array.isArray(data)) {
-        const userListings = data.filter(listing => 
-          listing.userRef === userId || listing.userId === userId
-        );
-        setListings(userListings);
-      } else {
-        setError(data?.message || "Failed to load listings");
-        setListings([]);
-      }
-    } catch (err) {
-      console.error("Error loading listings:", err);
-      setError("Failed to load listings");
-      setListings([]);
-    } finally {
-      setLoading(false);
+ const loadListings = async () => {
+  try {
+    setLoading(true);
+    
+    // ✅ FIX: Use getMyListingsApi for seller
+    let data;
+    if (userRole === 'seller') {
+      data = await getMyListingsApi();
+    } else {
+      data = await getListingsApi();
     }
-  };
+    
+    const user = getCurrentUser();
+
+    console.log("📊 ListingsPage - Raw API Response:", data);
+    console.log("👤 ListingsPage - Current User:", user);
+
+    if (data && data.success && Array.isArray(data.listings)) {
+      // For seller, no need to filter - API already returns user's listings
+      const userListings = userRole === 'seller' 
+        ? data.listings 
+        : data.listings.filter(listing => {
+            const isOwner = listing.userRef === user?._id || 
+                           (listing.userRef && listing.userRef._id === user?._id) ||
+                           listing.userId === user?._id;
+            return isOwner;
+          });
+      
+      console.log("✅ Filtered User Listings:", userListings.length);
+      setListings(userListings);
+    } else if (Array.isArray(data)) {
+      const userListings = data.filter(listing => 
+        listing.userRef === userId || listing.userId === userId
+      );
+      setListings(userListings);
+    } else {
+      setError(data?.message || "Failed to load listings");
+      setListings([]);
+    }
+  } catch (err) {
+    console.error("Error loading listings:", err);
+    setError("Failed to load listings");
+    setListings([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const onDelete = async (id: string) => {
     if (!confirm(t.deleteConfirm)) return;

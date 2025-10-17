@@ -721,16 +721,40 @@ export const deleteListingApi = async (id: string) => {
 };
 
 // ✅ CORRECT: Get all listings with proper image handling
+// ✅ CORRECT: Get all listings with role-based endpoints
 export const getListingsApi = async () => {
   try {
     const headers = authHeaders();
-    console.log('🔄 getListingsApi - Making request with headers:', headers);
+    const currentRole = localStorage.getItem('currentRole') || 'buyer';
     
-    const res = await fetch(`${BASE}/api/listings`, {
+    // ✅ FIX: Use different endpoints based on role
+    let url = `${BASE}/api/listings`;
+    
+    // If user is seller, fetch only their listings
+    if (currentRole === 'seller') {
+      url = `${BASE}/api/listings/my-listings`;
+    }
+    
+    console.log(`🔄 getListingsApi - ${currentRole} role, fetching from:`, url);
+    
+    const res = await fetch(url, {
       headers: headers
     });
     
     console.log('📊 getListingsApi - Response status:', res.status);
+    
+    // ✅ FIX: Handle 404 for seller listings
+    if (res.status === 404) {
+      if (currentRole === 'seller') {
+        console.log('📝 No listings found for seller, returning empty array');
+        return {
+          success: true,
+          listings: [],
+          message: 'No listings found'
+        };
+      }
+      throw new Error(`Endpoint not found: ${res.status}`);
+    }
     
     const data = await parseJson(res);
     console.log('📊 getListingsApi - Raw API response:', data);
@@ -750,8 +774,6 @@ export const getListingsApi = async () => {
 
     // ✅ CORRECT: Process images for all listings
     const listingsWithMedia = listings.map((listing: any) => {
-      console.log(`🏠 Processing listing ${listing._id}:`, listing.images);
-      
       return {
         ...listing,
         images: processImages(listing.images || []),
@@ -759,7 +781,7 @@ export const getListingsApi = async () => {
       };
     });
 
-    console.log('🎉 Final processed listings:', listingsWithMedia);
+    console.log(`🎉 Final processed listings for ${currentRole}:`, listingsWithMedia.length);
 
     return {
       success: true,
@@ -767,6 +789,17 @@ export const getListingsApi = async () => {
     };
   } catch (error: any) {
     console.error("Error fetching listings:", error);
+    
+    // ✅ FIX: Return empty array for seller if endpoint not found
+    const currentRole = localStorage.getItem('currentRole') || 'buyer';
+    if (currentRole === 'seller' && error.message.includes('404')) {
+      return {
+        success: true,
+        listings: [],
+        message: 'No listings found'
+      };
+    }
+    
     return {
       success: false,
       message: error.message,
