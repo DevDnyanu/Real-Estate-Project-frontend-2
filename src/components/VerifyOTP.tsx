@@ -101,7 +101,7 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
     setIsLoading(true);
 
     try {
-      console.log('Verifying OTP for:', email, 'OTP:', otp);
+      console.log('Verifyings OTP for:', email, 'OTP:', otp);
       const response = await verifyOtpApi(email, otp);
       console.log('Verify OTP Response:', response);
 

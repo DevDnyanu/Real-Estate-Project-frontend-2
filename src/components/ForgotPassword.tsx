@@ -98,7 +98,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ currentLang }) => {
             title: "OTP Generated (Development)",
             description: `Your OTP is: ${response.data.otp}`,
           });
-          console.log('🔐 OTP received:', response.data.otp);
+          console.log('🔐 OTP received.:', response.data.otp);
         }
         
         toast({
