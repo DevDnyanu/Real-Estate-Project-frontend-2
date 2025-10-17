@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
-import { verifyOtpApi } from "@/lib/api";
+import { verifyOtpApi, forgotPasswordApi } from "@/lib/api";
 
 interface VerifyOTPProps {
   currentLang: "en" | "mr";
@@ -15,7 +15,9 @@ interface VerifyOTPProps {
 const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [email, setEmail] = useState("");
+  const [countdown, setCountdown] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -33,6 +35,14 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
     setEmail(storedEmail);
   }, [navigate, toast]);
 
+  // Countdown timer for resend OTP
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
   const t = {
     en: {
       title: "Verify OTP",
@@ -49,6 +59,10 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
       invalidOtp: "Invalid OTP. Please try again.",
       somethingWentWrong: "Something went wrong. Please try again.",
       sessionExpired: "Session expired. Please request a new OTP.",
+      resendOtp: "Resend OTP",
+      resending: "Resending...",
+      resendSuccess: "OTP resent successfully",
+      waitCountdown: "Wait for {seconds} seconds before resending",
     },
     mr: {
       title: "OTP सत्यापित करा",
@@ -65,6 +79,10 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
       invalidOtp: "अवैध OTP. कृपया पुन्हा प्रयत्न करा.",
       somethingWentWrong: "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.",
       sessionExpired: "सत्र कालबाह्य झाले. कृपया नवीन OTP मागवा.",
+      resendOtp: "OTP पुन्हा पाठवा",
+      resending: "पुन्हा पाठवत आहे...",
+      resendSuccess: "OTP यशस्वीरित्या पुन्हा पाठवला",
+      waitCountdown: "पुन्हा पाठवण्यापूर्वी {seconds} सेकंद थांबा",
     },
   }[currentLang];
 
@@ -120,11 +138,46 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
   };
 
   const handleResendOTP = async () => {
-    // You can implement resend OTP functionality here
-    toast({
-      title: "Info",
-      description: "Please go back and request a new OTP",
-    });
+    if (countdown > 0) return;
+
+    setIsResending(true);
+    try {
+      const response = await forgotPasswordApi(email);
+      
+      if (response.status === 'success') {
+        toast({
+          title: t.success,
+          description: t.resendSuccess,
+        });
+        
+        // Start countdown (60 seconds)
+        setCountdown(60);
+        
+        // Show OTP in development
+        if (process.env.NODE_ENV === 'development' && response.data?.otp) {
+          console.log('🔐 New OTP:', response.data.otp);
+          toast({
+            title: "New OTP (Development)",
+            description: `Your new OTP is: ${response.data.otp}`,
+          });
+        }
+      } else {
+        toast({
+          title: t.error,
+          description: response.message || t.somethingWentWrong,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Resend OTP error:", error);
+      toast({
+        title: t.error,
+        description: error.message || t.somethingWentWrong,
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -164,7 +217,7 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
                 maxLength={6}
                 required
                 disabled={isLoading}
-                className="text-center text-lg font-mono"
+                className="text-center text-lg font-mono tracking-widest"
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -175,9 +228,12 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ currentLang }) => {
             <Button 
               variant="link" 
               onClick={handleResendOTP}
-              disabled={isLoading}
+              disabled={isResending || countdown > 0}
+              className="text-sm"
             >
-              Didn't receive OTP? Resend
+              {isResending ? t.resending : 
+               countdown > 0 ? t.waitCountdown.replace('{seconds}', countdown.toString()) : 
+               t.resendOtp}
             </Button>
           </div>
         </CardContent>

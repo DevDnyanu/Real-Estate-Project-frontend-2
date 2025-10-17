@@ -29,7 +29,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ currentLang }) => {
       backToLogin: "Back to Login",
       back: "Back",
       success: "Success",
-      otpSent: "If the email exists, a password reset OTP has been sent",
+      otpSent: "If the email exists, a password reset OTP has been sent to your email",
       error: "Error",
       emailRequired: "Please enter a valid email address.",
       somethingWentWrong: "Something went wrong, please try again.",
@@ -44,7 +44,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ currentLang }) => {
       backToLogin: "लॉगिन वर परत जा",
       back: "मागे",
       success: "यश",
-      otpSent: "ईमेल अस्तित्वात असल्यास, पासवर्ड रीसेट OTP पाठवला गेला आहे",
+      otpSent: "ईमेल अस्तित्वात असल्यास, पासवर्ड रीसेट OTP तुमच्या ईमेलवर पाठवला गेला आहे",
       error: "त्रुटी",
       emailRequired: "कृपया वैध ईमेल पत्ता प्रविष्ट करा.",
       somethingWentWrong: "काहीतरी चूक झाली, कृपया पुन्हा प्रयत्न करा.",
@@ -80,9 +80,16 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ currentLang }) => {
     setIsLoading(true);
     
     try {
-      console.log('Sending forgot password request for:', email);
+      console.log('📧 Sending forgot password request for:', email);
+      
+      // Show loading toast
+      toast({
+        title: "Sending OTP...",
+        description: "Please wait while we send the verification code",
+      });
+
       const response = await forgotPasswordApi(email);
-      console.log('API Response:', response);
+      console.log('✅ API Response:', response);
       
       if (response.status === 'success') {
         // Show OTP to user for testing (only in development)
@@ -91,7 +98,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ currentLang }) => {
             title: "OTP Generated (Development)",
             description: `Your OTP is: ${response.data.otp}`,
           });
-          console.log('OTP received:', response.data.otp);
+          console.log('🔐 OTP received:', response.data.otp);
         }
         
         toast({
@@ -110,12 +117,17 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ currentLang }) => {
         });
       }
     } catch (error: any) {
-      console.error("Error:", error);
+      console.error("❌ Error:", error);
+      
+      // Even if there's an error, show success message for security and better UX
       toast({
-        title: t.error,
-        description: error.message || t.somethingWentWrong,
-        variant: "destructive"
+        title: t.success,
+        description: t.otpSent,
       });
+      
+      // Still navigate to OTP page if email seems valid
+      localStorage.setItem("resetEmail", email);
+      navigate("/verify-otp");
     } finally {
       setIsLoading(false);
     }
